@@ -9,11 +9,11 @@ typedef struct {
 } Matrix;
 
 Matrix read_csv(const char *filename);
-void free_arr(Matrix arr);
+void free_matrix(Matrix arr);
 Matrix transpose_matrix(Matrix *arr);
-Matrix process_data(Matrix *data);
 void normalize_data(Matrix *data);
-
+void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data);
+void normalize(Matrix *X_train, Matrix *X_test);
 
 
 
