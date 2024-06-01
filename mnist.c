@@ -4,11 +4,6 @@
 #include "mnist.h"
 #define MAX_LINE_LENGTH 100000
 
-void remove_first_row(float ***arr, int *n_rows, int n_cols);
-float ** read_csv(const char *filename, int *num_rows, int *num_cols);
-int main(int argc, char *argv[]);
-void free_arr(float **arr, int rows);
-
 float ** read_csv(const char * filename, int *num_rows, int *num_cols) {
   FILE *fp_orig = fopen(filename, "r");
   if (fp_orig == NULL) {
@@ -20,6 +15,7 @@ float ** read_csv(const char * filename, int *num_rows, int *num_cols) {
   int num_lines = 0;
   int max_tokens = 0;
   FILE *fp = fp_orig;
+
   // each line in the MNIST csv file is a row
   while (fgets(line, MAX_LINE_LENGTH, fp)) {
       num_lines ++;
@@ -56,60 +52,58 @@ float ** read_csv(const char * filename, int *num_rows, int *num_cols) {
   *num_cols = max_tokens;
   return data;
 }
-/*
-void remove_first_row(float*** arr) {
+
+void remove_first_row(float*** arr, int *nrows, int ncols) {
   float **orig_arr = *arr; 
-  *arr = &orig_arr[1]; //&orig_arr[1];
-  free(orig_arr[0]);
-}
-*/
-// GPT generated:
-void remove_first_row(float ***arr, int *num_rows, int num_cols) {
-    float **orig_arr = *arr;
-    int new_rows = *num_rows - 1;
-    float **new_arr = (float **)calloc(new_rows, sizeof(float *));
-
-    for (int i = 0; i < new_rows; i++) {
-        new_arr[i] = (float *)calloc(num_cols, sizeof(float));
-        memcpy(new_arr[i], orig_arr[i + 1], num_cols * sizeof(float));
-    }
-
-    free_arr(orig_arr, *num_rows);
-    *arr = new_arr;
-    *num_rows = new_rows;
-}
-
-
-int count_rows(float **arr) {
-  int rows = 2;
-  while(arr[rows] != NULL) {
-    rows++;
+  int new_rows = *nrows - 1;
+  float **new_arr = (float **)calloc(new_rows, sizeof(float *));
+  for (int i = 0; i < new_rows; i++) {
+      new_arr[i] = (float *)calloc(ncols, sizeof(float)); 
+      memcpy(new_arr[i], orig_arr[i + 1], ncols * sizeof(float));
   }
-  return rows;
+  free_arr(orig_arr, *nrows);
+  *arr = new_arr;
+  *nrows = new_rows;
+
 }
 
 void free_arr(float **arr, int nrows) {
-    int i = 0;
-    while(i < nrows) {
+    for (int i = 0; i < nrows; i++) {
         free(arr[i]);
-        i++;
     }
     free(arr);
 }
+
+/*
+float random_float() {
+    return ((float)rand() / (float)RAND_MAX) - 0.5;
+}
+
+void init_weights(Matrix *W) {
+    // I need to initialize every value of each matrix according to a uniform distribution on (-0.5, 0.5)
+    *W.arr = (float **)calloc(W.rows, sizeof(float*)); 
+
+*/
+
 
 
 int main(int argc, char *argv[]) {
   int n_rows, n_cols;
   float **data = read_csv("MNIST_train.csv", &n_rows, &n_cols);
-  printf("%p\n", &data);
-  //n_rows = count_rows(data);
-  printf("%f %f\n", data[0][0], data[0][1]);
-  printf("rows: %d, columns: %d\n", n_rows, n_cols);
-  remove_first_row(&data, &n_rows, n_cols); // GPT generated
-  printf("%f %f\n", data[0][0], data[0][1]);
-  printf("rows: %d, columns: %d\n", n_rows, n_cols);
+  printf("rows: %d, cols: %d\n", n_rows, n_cols);
+  remove_first_row(&data, &n_rows, n_cols);
+  printf("rows: %d, cols: %d\n", n_rows, n_cols);
+
+  
+  /*
+  Matrix W1 = { .num_rows = n_rows, .num_cols = nodes_L2 } 
+
+  init_weights(&W1);
+  init_weights(&W2);
+  init_weights(&W3);
+  */
+
   free_arr(data, n_rows);
-  printf("%p\n", &data);
   return 0;
 }
 
