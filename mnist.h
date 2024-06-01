@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define MAX_LINE_LENGTH 100000
 
 typedef struct {
     int nrows; 
@@ -11,7 +10,9 @@ typedef struct {
 
 Matrix read_csv(const char *filename);
 void free_arr(Matrix arr);
-void remove_first_row(Matrix *data);
+Matrix transpose_matrix(Matrix *arr);
+Matrix process_data(Matrix *data);
+void normalize_data(Matrix *data);
 
 
 
