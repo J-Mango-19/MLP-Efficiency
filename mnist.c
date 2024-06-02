@@ -101,8 +101,7 @@ float random_float() {
 
 void init_weights(Matrix *W) {
     // Initialize every value of each matrix according to a uniform distribution on (-0.5, 0.5)
-    W->mat = (float **)calloc(W->nrows, sizeof(float*)); 
-    for (int i = 0; i < W->ncols; i++) {
+    for (int i = 0; i < W->nrows; i++) {
         W->mat[i] = calloc(W->ncols, sizeof(float));
         for (int j = 0; j < W->ncols; j++) {
             W->mat[i][j] = random_float();
@@ -172,6 +171,99 @@ void normalize(Matrix *X_train, Matrix *X_test) {
     }
 }
 
+void append_bias(Matrix *X_train, Matrix *X_test) {
+    // define & allocate replacement arrays that will contain the same values and also a bias multpliying 1 for each input pattern
+    float **new_arr_train = malloc((X_train->nrows + 1) * sizeof(float *));
+    float **new_arr_test = malloc((X_test->nrows + 1) * sizeof(float *));
+    for (int i = 0; i < X_train->nrows; i++) {
+
+        // allocate & reassign values for X_train
+        new_arr_train[i] = malloc(X_train->ncols * sizeof(float));
+        for (int j = 0; j < X_train->ncols; j++) {
+            new_arr_train[i][j] = X_train->mat[i][j];
+        }
+
+        //allocate & reassign values for X_test
+        new_arr_test[i] = malloc(X_test->ncols * sizeof(float));
+        for (int j = 0; j < X_test->ncols; j++) {
+            new_arr_test[i][j] = X_test->mat[i][j];
+        }
+    }
+
+    // allocate & assign a 1 for the bias term of each input pattern
+    new_arr_train[X_train->nrows] = malloc(X_train->ncols * sizeof(float));
+    new_arr_test[X_test->nrows] = malloc(X_test->ncols * sizeof(float));
+    for (int j = 0; j < X_train->ncols; j++) {
+        new_arr_train[X_train->nrows][j] = 1;
+    }
+    for (int j = 0; j < X_test->ncols; j++) {
+        new_arr_test[X_test->nrows][j] = 1;
+    }
+
+    // free the old matrices & replace with new ones
+    free_matrix(*X_train);
+    free_matrix(*X_test);
+    X_train->nrows += 1;
+    X_test->nrows += 1;
+    X_train->mat = new_arr_train;
+    X_test->mat = new_arr_test;
+}
+
+void relu(Matrix *Z) {
+    for (int i = 0; i < Z->nrows; i++) {
+        for (int j = 0; j < Z->ncols; j++) {
+            if (Z->mat[i][j] < 0) Z->mat[i][j] = 0;
+        }
+    }
+}
+
+void softmax(Matrix *Z) {
+    // define a matrix of exponentials of the Z matrix
+    float exp_matrix[Z->nrows][Z->ncols]; 
+    for (int i = 0; i < Z->nrows; i++) {
+       for (int j = 0; j < Z->ncols; j++) {
+            exp_matrix[i][j] = exp(Z->mat[i][j]);
+        }
+    }
+
+    // for each column, sum the exponential matrix values
+    // then divide each element of the col by the sum and store it
+    for (int j = 0; j < Z->ncols; j++) {
+        float col_sum = 0; 
+        for (int i = 0; i < Z->nrows; i++) {
+           col_sum += exp_matrix[i][j];
+        }
+        for (int i = 0; i < Z->nrows; i++) {
+           Z->mat[i][j] = exp_matrix[i][j] / col_sum;
+        }
+   }
+}
+/*
+Matrix multiply_matrices(Matrix *M1, Matrix *M2) {
+    if (M1->ncols != M2->nrows) {
+        fprintf(stderr, "Error! Factor matrix dimensions incompatible\n");
+        fprintf(stderr, "M1: (%d, %d), M2: (%d, %d)\n", M1->nrows, M1->ncols, M2->nrows, M2->ncols);
+        exit(1);
+    }
+    // allocate product matrix
+    Matrix product = {.nrows = M1->nrows, .ncols = M2.ncols, .mat = malloc(M1->nrows * sizeof(float *))};
+    for (int i = 0; i < product.nrows; i++) {
+        product.mat[i] = malloc(product.ncols * sizeof(float));
+    }
+
+    // multiply matrices
+
+
+    
+}
+
+def forward_pass(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3) {
+
+*/
+
+
+
+
 
 int main(int argc, char *argv[]) {
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values) 
@@ -184,6 +276,7 @@ int main(int argc, char *argv[]) {
     XY_split(&test_data, &X_test, &Y_test);
     XY_split(&train_data, &X_train, &Y_train);
     normalize(&X_train, &X_test);
+    append_bias(&X_train, &X_test);
 
     // testing X 
     /*
@@ -204,13 +297,15 @@ int main(int argc, char *argv[]) {
 
     // initialize weights (don't forget to include biases!!) I think this would involve adding 1 element to the end of the rows and initializing it to random too, also must
     // add 1 to end of every input
-    Matrix W1 = { .nrows = data.ncols, .ncols = 30};
-    Matrix W2 = { .nrows = 30, .ncols = 20};
-    Matrix W3 = { .nrows = 20, .ncols = 10};
+    Matrix W1 = {.nrows = 30, .ncols = X_train.nrows, .mat = malloc(30 * sizeof(float*))};
+    Matrix W2 = {.nrows = 20, .ncols = 30 + 1, .mat = malloc(20 * sizeof(float*))};
+    Matrix W3 = {.nrows = 10, .ncols = 20 + 1, .mat = malloc(10 * sizeof(float*))};
 
     init_weights(&W1);
     init_weights(&W2);
     init_weights(&W3);
+
+     
 
 
 
@@ -224,7 +319,6 @@ int main(int argc, char *argv[]) {
     free_matrix(W3);
     return 0;
 }
-
 
 
 
