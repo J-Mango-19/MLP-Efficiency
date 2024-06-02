@@ -124,7 +124,7 @@ void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data) {
 
         // allocate and store data for one row of train data
         train_data->mat[i] = malloc(train_rowsize);
-        for (int j = 0; j < 41999; j++) {
+        for (int j = 1000; j < 41999; j++) {
             train_data->mat[i][j-1000] = data->mat[j][i];
         }
 
