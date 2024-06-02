@@ -119,29 +119,24 @@ void init_weights(Matrix *W) {
 
 void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data) {
     size_t test_rowsize = test_data->ncols * sizeof(float);
+    size_t train_rowsize = train_data->ncols * sizeof(float);
     for (int i = 0; i < 785; i++) {
+
+        // allocate and store data for one row of train data
+        train_data->mat[i] = malloc(train_rowsize);
+        for (int j = 0; j < 41999; j++) {
+            train_data->mat[i][j-1000] = data->mat[j][i];
+        }
+
+        // allocate and store data for one row of test data
         test_data->mat[i] = malloc(test_rowsize);
         for (int j = 0; j < 1000; j++) {
             test_data->mat[i][j] = data->mat[j][i];
         }
     }
-    // i corresponds to the rows of data matrix, so each i is a pattern
-    size_t train_rowsize = train_data->ncols * sizeof(float);
-    for (int i = 0; i < 785; i++) {
-        train_data->mat[i] = malloc(train_rowsize);
-        for (int j = 1000; j < 41999; j++) {
-            train_data->mat[i][j-1000] = data->mat[j][i];
-        }
-    }
-
     // free the original data matrix
     free_matrix_arr(*data);
-    /* POTENTIAL TO DOUBLE UP ON FOR LOOP COVERAGE HERE!!
-    for (int i = 0; i < 785, i++) {
 
-        // allocate and store data for one row of 
-        train_data->mat[i] = malloc(train_rowsize);
-    */
 }
 
 void XY_split(Matrix *data, Matrix *X, float **Y) {
