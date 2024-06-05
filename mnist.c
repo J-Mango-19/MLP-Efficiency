@@ -211,6 +211,7 @@ Matrix *duplicate_matrix(Matrix *original) {
 }
 */
 
+// this function is for when the new matrix is larger than the original
 void copy_matrix_values(Matrix *original, Matrix *New) {
     for (int i = 0; i < original->nrows; i++) {
         for (int j = 0; j < original->ncols; j++) {
@@ -218,6 +219,15 @@ void copy_matrix_values(Matrix *original, Matrix *New) {
         }
     }
 }
+
+void copy_some_matrix_values(Matrix *original, Matrix *New) {
+    for (int i = 0; i < New->nrows; i++) {
+        for (int j = 0; j < New->ncols; j++) {
+            New->mat[i][j] = original->mat[i][j];
+        }
+    }
+}
+
 
 void append_bias_factor(Matrix *A) {
     for (int j = 0; j < A->ncols; j++) {
@@ -239,21 +249,36 @@ void get_matrix_stats(Matrix *problem) {
     }
 }
 
+void set_matrix_to_zeros(Matrix *Z) {
+    for (int i = 0; i < Z->nrows; i++) {
+        for (int j= 0; j < Z->ncols; j++) {
+            Z->mat[i][j] = 0;
+        }
+    }
+}
+
 
 void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3) { 
+    
     // layer 1
+    set_matrix_to_zeros(layers->Z1);
+    set_matrix_to_zeros(layers->A1);
     multiply_matrices(W1, X, layers->Z1);
     copy_matrix_values(layers->Z1, layers->A1); 
     append_bias_factor(layers->A1);
     relu(layers->A1);
 
     // layer 2
+    set_matrix_to_zeros(layers->Z2);
+    set_matrix_to_zeros(layers->A2);
     multiply_matrices(W2, layers->A1, layers->Z2);
     copy_matrix_values(layers->Z2, layers->A2);
     append_bias_factor(layers->A2);
     relu(layers->A2);
 
     // layer 3 (output)
+    set_matrix_to_zeros(layers->Z3);
+    set_matrix_to_zeros(layers->A3);
     multiply_matrices(W3, layers->A2, layers->Z3);
     copy_matrix_values(layers->Z3, layers->A3);
     softmax(layers->A3);
@@ -313,14 +338,20 @@ int main(int argc, char *argv[]) {
     init_weights(&W3);
 
     // forward pass, prints average for all training examples
-    // it will become necessary to write a function that returns a matrix containing x number of training examples
-    Layers *layers = init_layers(&X_test, &W1, &W2, &W3);
-    for (int i = 0; i < 3; i++) {
+    Matrix X_in = { .nrows = 785, .ncols = 10, .mat = calloc(785, sizeof(float *)) };
+    for (int i = 0; i < X_in.nrows; i++) {
+        X_in.mat[i] = malloc(X_in.ncols * sizeof(float));
+    }
+    copy_some_matrix_values(&X_test, &X_in);
+
+    Layers *layers = init_layers(&X_in, &W1, &W2, &W3);
+    for (int i = 0; i < 5; i++) {
         forward_pass(layers, &X_test, &W1, &W2, &W3);
     }
 
 
     // cleanup
+    free_matrix_arr(X_in);
     free_matrix_struct(layers->Z1);
     free_matrix_struct(layers->Z2);
     free_matrix_struct(layers->Z3);
