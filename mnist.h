@@ -34,7 +34,7 @@ void multiply_matrices(Matrix *A, Matrix *B, Matrix *C);
 void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
 Layers *init_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
 void append_bias_factor(Matrix *A);
-void append_bias(Matrix *X_train, Matrix *X_test);
+void append_bias_input(Matrix *X_train, Matrix *X_test);
 void copy_matrix_values(Matrix *original, Matrix *New);
 void copy_some_matrix_values(Matrix *original, Matrix *New);
 void set_matrix_to_zeros(Matrix *Z);

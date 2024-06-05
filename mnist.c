@@ -1,6 +1,5 @@
 #include "mnist.h"
 
-
 Matrix transpose_matrix(Matrix *arr) {
     float **new_matrix = calloc(arr->ncols, sizeof(float*));
     for (int j = 0; j < arr->ncols; j++) {
@@ -43,48 +42,6 @@ void init_weights(Matrix *W) {
     }
 }
 
-void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data) {
-    size_t test_rowsize = test_data->ncols * sizeof(float);
-    size_t train_rowsize = train_data->ncols * sizeof(float);
-    for (int i = 0; i < 785; i++) {
-
-        // allocate and store data for one row of train data
-        train_data->mat[i] = malloc(train_rowsize);
-        for (int j = 1000; j < 41999; j++) {
-            train_data->mat[i][j-1000] = data->mat[j][i];
-        }
-
-        // allocate and store data for one row of test data
-        test_data->mat[i] = malloc(test_rowsize);
-        for (int j = 0; j < 1000; j++) {
-            test_data->mat[i][j] = data->mat[j][i];
-        }
-    }
-    // free the original data matrix
-    free_matrix_arr(*data);
-
-}
-
-void XY_split(Matrix *data, Matrix *X, float **Y) {
-    // copy first row into Y array
-    *Y = (float*)malloc(data->ncols * sizeof(float));
-    memcpy(*Y, data->mat[0], data->ncols * sizeof(float));
-
-
-    // copy the rest of the rows of data into X matrix
-    X->ncols = data->ncols;
-    X->nrows = data->nrows - 1;
-    X->mat = malloc(X->nrows * sizeof(float(*)));
-    size_t row_size = data->ncols * sizeof(float);
-    for (int i = 1; i < X->nrows + 1; i++) {
-        X->mat[i-1] = malloc(row_size);
-        memcpy(X->mat[i-1], data->mat[i], row_size); 
-    }
-
-    // free the original data array 
-    free_matrix_arr(*data);
-}
-
 void normalize(Matrix *X_train, Matrix *X_test) {
     for (int i = 0; i < X_train->nrows; i++) {
 
@@ -100,43 +57,6 @@ void normalize(Matrix *X_train, Matrix *X_test) {
     }
 }
 
-void append_bias(Matrix *X_train, Matrix *X_test) {
-    // define & allocate replacement arrays that will contain the same values and also a bias multpliying 1 for each input pattern
-    float **new_arr_train = malloc((X_train->nrows + 1) * sizeof(float *));
-    float **new_arr_test = malloc((X_test->nrows + 1) * sizeof(float *));
-    for (int i = 0; i < X_train->nrows; i++) {
-
-        // allocate & reassign values for X_train
-        new_arr_train[i] = malloc(X_train->ncols * sizeof(float));
-        for (int j = 0; j < X_train->ncols; j++) {
-            new_arr_train[i][j] = X_train->mat[i][j];
-        }
-
-        //allocate & reassign values for X_test
-        new_arr_test[i] = malloc(X_test->ncols * sizeof(float));
-        for (int j = 0; j < X_test->ncols; j++) {
-            new_arr_test[i][j] = X_test->mat[i][j];
-        }
-    }
-
-    // allocate & assign a 1 for the bias term of each input pattern
-    new_arr_train[X_train->nrows] = malloc(X_train->ncols * sizeof(float));
-    new_arr_test[X_test->nrows] = malloc(X_test->ncols * sizeof(float));
-    for (int j = 0; j < X_train->ncols; j++) {
-        new_arr_train[X_train->nrows][j] = 1;
-    }
-    for (int j = 0; j < X_test->ncols; j++) {
-        new_arr_test[X_test->nrows][j] = 1;
-    }
-
-    // free the old matrices & replace with new ones
-    free_matrix_arr(*X_train);
-    free_matrix_arr(*X_test);
-    X_train->nrows += 1;
-    X_test->nrows += 1;
-    X_train->mat = new_arr_train;
-    X_test->mat = new_arr_test;
-}
 
 void relu(Matrix *Z) {
     for (int i = 0; i < Z->nrows; i++) {
@@ -195,23 +115,7 @@ void multiply_matrices(Matrix *A, Matrix *B, Matrix *C) {
     }
 }
 
-
-/*
-Matrix *duplicate_matrix(Matrix *original) {
-    Matrix *new_matrix = malloc(sizeof(Matrix));
-    new_matrix->nrows = original->nrows;
-    new_matrix->ncols = original->ncols;
-    new_matrix->mat = malloc(new_matrix->nrows * sizeof(float *));
-    size_t row_size = new_matrix->ncols * sizeof(float);
-    for (int i = 0; i < new_matrix->nrows; i++) {
-        new_matrix->mat[i] = malloc(row_size);
-        memcpy(new_matrix->mat[i], original->mat[i], row_size); 
-    }
-    return new_matrix;
-}
-*/
-
-// this function is for when the new matrix is larger than the original
+// use this function to copy a new matrix that is larger than the original (for example, copying Z values into A matrices, which are larger to hold bias factor)
 void copy_matrix_values(Matrix *original, Matrix *New) {
     for (int i = 0; i < original->nrows; i++) {
         for (int j = 0; j < original->ncols; j++) {
@@ -220,6 +124,7 @@ void copy_matrix_values(Matrix *original, Matrix *New) {
     }
 }
 
+// use this fxn to copy a subset of values from a larger matrix into a smaller one (for example, copying X values into a batch matrix)
 void copy_some_matrix_values(Matrix *original, Matrix *New) {
     for (int i = 0; i < New->nrows; i++) {
         for (int j = 0; j < New->ncols; j++) {
@@ -228,13 +133,13 @@ void copy_some_matrix_values(Matrix *original, Matrix *New) {
     }
 }
 
-
 void append_bias_factor(Matrix *A) {
     for (int j = 0; j < A->ncols; j++) {
         A->mat[A->nrows -1][j] = 1; 
     }
 }
 
+// this is just for debugging
 void get_matrix_stats(Matrix *problem) {
     float sum, max;
     for (int i = 0; i < problem->nrows; i++) {
@@ -283,6 +188,7 @@ void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3)
     copy_matrix_values(layers->Z3, layers->A3);
     softmax(layers->A3);
 
+    // debugging purposes
     float sum = 0;
     for (int i = 0; i < layers->A3->nrows; i++) {
         sum = 0;
@@ -325,10 +231,9 @@ int main(int argc, char *argv[]) {
     XY_split(&test_data, &X_test, &Y_test);
     XY_split(&train_data, &X_train, &Y_train);
     normalize(&X_train, &X_test);
-    append_bias(&X_train, &X_test);
+    append_bias_input(&X_train, &X_test);
 
-    // initialize weights (don't forget to include biases!!) I think this would involve adding 1 element to the end of the rows and initializing it to random too, also must
-    // add 1 to end of every input
+    // initialize weights with an extra term for each node acting as bias 
     Matrix W1 = {.nrows = 30, .ncols = X_train.nrows, .mat = malloc(30 * sizeof(float*))};
     Matrix W2 = {.nrows = 20, .ncols = 30 + 1, .mat = malloc(20 * sizeof(float*))};
     Matrix W3 = {.nrows = 10, .ncols = 20 + 1, .mat = malloc(10 * sizeof(float*))};
@@ -337,13 +242,14 @@ int main(int argc, char *argv[]) {
     init_weights(&W2);
     init_weights(&W3);
 
-    // forward pass, prints average for all training examples
+    // gets a subset of the data to train on 
     Matrix X_in = { .nrows = 785, .ncols = 10, .mat = calloc(785, sizeof(float *)) };
     for (int i = 0; i < X_in.nrows; i++) {
         X_in.mat[i] = malloc(X_in.ncols * sizeof(float));
     }
     copy_some_matrix_values(&X_test, &X_in);
 
+    // forward pass, prints average for all input examples
     Layers *layers = init_layers(&X_in, &W1, &W2, &W3);
     for (int i = 0; i < 5; i++) {
         forward_pass(layers, &X_test, &W1, &W2, &W3);
