@@ -179,7 +179,6 @@ Matrix *allocate_matrix(int nrows, int ncols) {
     return M;
 }
 
-
 void multiply_matrices(Matrix *A, Matrix *B, Matrix *C) {
     if (A->ncols != B->nrows) {
         fprintf(stderr, "Error! Factor matrix dimensions incompatible\n");
@@ -190,7 +189,7 @@ void multiply_matrices(Matrix *A, Matrix *B, Matrix *C) {
     for (int i = 0; i < C->nrows; i++) {
         for (int j = 0; j < C->ncols; j++) {
             for (int k = 0; k < A->ncols; k++) {
-                C->mat[i][j] += A->mat[i][k] * B->mat[i][j];
+                C->mat[i][j] += A->mat[i][k] * B->mat[k][j];
             }
         }
     }
@@ -235,7 +234,7 @@ void get_matrix_stats(Matrix *problem) {
             sum += problem->mat[i][j];
             if (problem->mat[i][j] > max) max = problem->mat[i][j];
         }
-        printf("Average of row %d: %f\n", i, sum / problem->nrows);
+        printf("Average of row %d: %f\n", i, sum / problem->ncols);
         printf("Max of row %d i: %f\n", i, max);
     }
 }
@@ -244,10 +243,9 @@ void get_matrix_stats(Matrix *problem) {
 void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3) { 
     // layer 1
     multiply_matrices(W1, X, layers->Z1);
-    get_matrix_stats(layers->Z1);
     copy_matrix_values(layers->Z1, layers->A1); 
     append_bias_factor(layers->A1);
-    relu(layers->A2);
+    relu(layers->A1);
 
     // layer 2
     multiply_matrices(W2, layers->A1, layers->Z2);
@@ -317,7 +315,9 @@ int main(int argc, char *argv[]) {
     // forward pass, prints average for all training examples
     // it will become necessary to write a function that returns a matrix containing x number of training examples
     Layers *layers = init_layers(&X_test, &W1, &W2, &W3);
-    forward_pass(layers, &X_test, &W1, &W2, &W3);
+    for (int i = 0; i < 3; i++) {
+        forward_pass(layers, &X_test, &W1, &W2, &W3);
+    }
 
 
     // cleanup
@@ -337,6 +337,4 @@ int main(int argc, char *argv[]) {
     free_matrix_arr(W3);
     return 0;
 }
-
-
 
