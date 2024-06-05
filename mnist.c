@@ -28,13 +28,6 @@ void free_matrix_struct(Matrix *arr) {
     free(arr);
 }
 
-void normalize_data(Matrix *data) {
-    for (int i = 0; i < data->nrows; i++) {
-        for (int j = 0; j < data->ncols; j++) {
-            data->mat[i][j] /= 255;
-        }
-    }
-}
 
 float random_float() {
     return ((float)rand() / (float)RAND_MAX);
@@ -186,36 +179,26 @@ Matrix *allocate_matrix(int nrows, int ncols) {
     return M;
 }
 
-Matrix *multiply_matrices(Matrix *A, Matrix *B, bool extra_bias_row) {
+
+void multiply_matrices(Matrix *A, Matrix *B, Matrix *C) {
     if (A->ncols != B->nrows) {
         fprintf(stderr, "Error! Factor matrix dimensions incompatible\n");
         fprintf(stderr, "A: (%d, %d), B: (%d, %d)\n", A->nrows, A->ncols, B->nrows, B->ncols);
         exit(1);
     }
 
-
-    Matrix *C = allocate_matrix(A->nrows + (int)extra_bias_row, B->ncols);
-    C->nrows -= (int)extra_bias_row;
-
-    // multiply matrices
     for (int i = 0; i < C->nrows; i++) {
         for (int j = 0; j < C->ncols; j++) {
             for (int k = 0; k < A->ncols; k++) {
-                C->mat[i][j] += A->mat[i][k] * B->mat[k][j];
+                C->mat[i][j] += A->mat[i][k] * B->mat[i][j];
             }
         }
     }
-    if (extra_bias_row) C->nrows += 1;
-    return C;
 }
 
-void add_bias_factor(Matrix *A) {
-    for (int j = 0; j < A->ncols; j++) {
-        A->mat[A->nrows - 1][j] = 1;
-    }
-}
 
-Matrix *copy_matrix(Matrix *original) {
+/*
+Matrix *duplicate_matrix(Matrix *original) {
     Matrix *new_matrix = malloc(sizeof(Matrix));
     new_matrix->nrows = original->nrows;
     new_matrix->ncols = original->ncols;
@@ -227,35 +210,85 @@ Matrix *copy_matrix(Matrix *original) {
     }
     return new_matrix;
 }
-        
+*/
 
-Layers forward_pass(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3) { 
-    Matrix *Z1 = multiply_matrices(W1, X, true);
-    Matrix *A1 = copy_matrix(Z1);
-    relu(A1);
-    add_bias_factor(A1); 
-    Matrix *Z2 = multiply_matrices(W2, A1, true);
-    Matrix *A2 = copy_matrix(Z2);
-    relu(A2);
-    add_bias_factor(A2);
-    Matrix *Z3 = multiply_matrices(W3, A2, false);
-    Matrix *A3 = copy_matrix(Z3);
-    softmax(A3);
-    float sum = 0;
-    for (int i = 0; i < A3->nrows; i++) {
-        sum = 0;
-        for (int j = 0; j < A3->ncols; j++) {
-            sum += A3->mat[i][j];
-        } 
-            printf("avg of row %d: %f\n", i, sum/A3->ncols);
+void copy_matrix_values(Matrix *original, Matrix *New) {
+    for (int i = 0; i < original->nrows; i++) {
+        for (int j = 0; j < original->ncols; j++) {
+            New->mat[i][j] = original->mat[i][j];
+        }
     }
-    Layers layers = {.Z1 = Z1, .Z2 = Z2, .Z3 = Z3, .A1 = A1, .A2 = A2, .A3 = A3};
-    return layers;
+}
+
+void append_bias_factor(Matrix *A) {
+    for (int j = 0; j < A->ncols; j++) {
+        A->mat[A->nrows -1][j] = 1; 
+    }
+}
+
+void get_matrix_stats(Matrix *problem) {
+    float sum, max;
+    for (int i = 0; i < problem->nrows; i++) {
+        sum = 0;
+        max = 0;
+        for (int j = 0; j < problem->ncols; j++) {
+            sum += problem->mat[i][j];
+            if (problem->mat[i][j] > max) max = problem->mat[i][j];
+        }
+        printf("Average of row %d: %f\n", i, sum / problem->nrows);
+        printf("Max of row %d i: %f\n", i, max);
+    }
 }
 
 
+void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3) { 
+    // layer 1
+    multiply_matrices(W1, X, layers->Z1);
+    get_matrix_stats(layers->Z1);
+    copy_matrix_values(layers->Z1, layers->A1); 
+    append_bias_factor(layers->A1);
+    relu(layers->A2);
 
+    // layer 2
+    multiply_matrices(W2, layers->A1, layers->Z2);
+    copy_matrix_values(layers->Z2, layers->A2);
+    append_bias_factor(layers->A2);
+    relu(layers->A2);
 
+    // layer 3 (output)
+    multiply_matrices(W3, layers->A2, layers->Z3);
+    copy_matrix_values(layers->Z3, layers->A3);
+    softmax(layers->A3);
+
+    float sum = 0;
+    for (int i = 0; i < layers->A3->nrows; i++) {
+        sum = 0;
+        for (int j = 0; j < layers->A3->ncols; j++) {
+            sum += layers->A3->mat[i][j];
+        } 
+            printf("avg of row %d: %f\n", i, sum / layers->A3->ncols);
+    }
+}
+
+Layers *init_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3) {
+    // layers A1 & A2 have an extra row added to them (which will be set to 1's later) as a factor to the bias terms in the next layer's weights
+    Matrix *Z1 = allocate_matrix(W1->nrows, X->ncols);
+    Matrix *A1 = allocate_matrix(W1->nrows + 1, X->ncols);
+    Matrix *Z2 = allocate_matrix(W2->nrows, A1->ncols);
+    Matrix *A2 = allocate_matrix(W2->nrows + 1, A1->ncols);
+    Matrix *Z3 = allocate_matrix(W3->nrows, A2->ncols);
+    Matrix *A3 = allocate_matrix(W3->nrows, A2->ncols);
+
+    Layers *initialized_layers = malloc(sizeof(Layers));
+    initialized_layers->Z1 = Z1;
+    initialized_layers->A1 = A1;
+    initialized_layers->Z2 = Z2;
+    initialized_layers->A2 = A2;
+    initialized_layers->Z3 = Z3;
+    initialized_layers->A3 = A3;
+
+    return initialized_layers;
+}
 
 
 int main(int argc, char *argv[]) {
@@ -283,17 +316,18 @@ int main(int argc, char *argv[]) {
 
     // forward pass, prints average for all training examples
     // it will become necessary to write a function that returns a matrix containing x number of training examples
-    Layers layers = forward_pass(&X_test, &W1, &W2, &W3);
-    // layers = forward_pass(&X_test, &W1, &W2, &W3);
+    Layers *layers = init_layers(&X_test, &W1, &W2, &W3);
+    forward_pass(layers, &X_test, &W1, &W2, &W3);
 
 
     // cleanup
-    free_matrix_struct(layers.Z1);
-    free_matrix_struct(layers.Z2);
-    free_matrix_struct(layers.Z3);
-    free_matrix_struct(layers.A1);
-    free_matrix_struct(layers.A2);
-    free_matrix_struct(layers.A3);
+    free_matrix_struct(layers->Z1);
+    free_matrix_struct(layers->Z2);
+    free_matrix_struct(layers->Z3);
+    free_matrix_struct(layers->A1);
+    free_matrix_struct(layers->A2);
+    free_matrix_struct(layers->A3);
+    free(layers);
     free_matrix_arr(X_test);
     free_matrix_arr(X_train);
     free(Y_test);
