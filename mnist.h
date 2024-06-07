@@ -46,10 +46,11 @@ void relu(Matrix *Z);
 void multiply_matrices(Matrix *A, Matrix *B, Matrix *C); 
 void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
 Layers *init_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
+Layers *init_avg_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
 void append_bias_factor(Matrix *A);
 void append_bias_input(Matrix *X_train, Matrix *X_test);
 void copy_matrix_values(Matrix *original, Matrix *New);
-void copy_some_matrix_values(Matrix *original, Matrix *New);
+void copy_some_matrix_values(Matrix *original, Matrix *New, int start_index, int end_index);
 void set_matrix_to_zeros(Matrix *Z);
 void subtract_matrices(Matrix *A, Matrix *B, Matrix *C);
 Matrix *allocate_matrix(int nrows, int ncols);
@@ -58,6 +59,7 @@ void multiply_matrices_elementwise(Matrix *A, Matrix *B, Matrix *C, bool omit_la
 void init_deltas(Deltas *deltas, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *X);
 void update_weights(Deltas *deltas, Matrix *W1, Matrix *W2, Matrix *W3, float lr);
 Matrix *one_hot(Matrix *Y);
-
+float get_accuracy(Matrix *yhat, Matrix *Y);
+void divide_matrix_elementwise(Matrix *matrix, int divisor);
 
 void get_matrix_stats(Matrix *problem);
