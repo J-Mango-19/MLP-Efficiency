@@ -195,7 +195,7 @@ void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3)
         for (int j = 0; j < layers->A3->ncols; j++) {
             sum += layers->A3->mat[i][j];
         } 
-            printf("avg of row %d: %f\n", i, sum / layers->A3->ncols);
+            printf("avg of prediction %d: %f\n", i, sum / layers->A3->ncols);
     }
 }
 
@@ -219,6 +219,135 @@ Layers *init_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3) {
     return initialized_layers;
 }
 
+Matrix *one_hot(Matrix *Y) {
+    Matrix *one_hot_Y = allocate_matrix(10, Y->ncols);
+    for (int i = 0; i < one_hot_Y->nrows; i++) {
+        for (int j = 0; j < one_hot_Y->ncols; j++) {
+            if (i == Y->mat[0][j]) 
+                one_hot_Y->mat[i][j] = 1;
+            else
+                one_hot_Y->mat[i][j] = 0;
+        }
+    }
+    return one_hot_Y;
+}
+
+void subtract_matrices(Matrix *A, Matrix *B, Matrix *C) {
+    if (A->ncols != B->ncols || A->nrows != B->nrows) {
+        fprintf(stderr, "Error! Subtraction matrix dimensions incompatible\n");
+        fprintf(stderr, "A: (%d, %d), B: (%d, %d)\n", A->nrows, A->ncols, B->nrows, B->ncols);
+        exit(1);
+    }
+
+    for (int i = 0; i < A->nrows; i++) {
+        for (int j = 0; j < A->ncols; j++) {
+            C->mat[i][j] = A->mat[i][j] - B->mat[i][j];
+        }
+    }
+}
+
+void deriv_relu(Matrix *Z, Matrix *derivative) {
+    for (int i = 0; i < Z->nrows; i++) {
+        for (int j = 0; j < Z->ncols; j++) {
+            if (Z->mat[i][j] > 0) 
+                derivative->mat[i][j] = 1;
+            else
+                derivative->mat[i][j] = 0;
+            }
+    }
+}
+
+void multiply_matrices_elementwise(Matrix *A, Matrix *B, Matrix *C, bool omit_last_row) {
+    // B is one bigger
+    if (A->nrows != B->nrows - (int)omit_last_row || A->ncols != B->ncols) {
+        fprintf(stderr, "Error! Elementwise multiplication matrix dimensions incompatible\n");
+        fprintf(stderr, "A: (%d, %d), B: (%d, %d)\n", A->nrows, A->ncols, B->nrows, B->ncols);
+        fprintf(stderr, "A would have %d less rows\n", (int)omit_last_row);
+        exit(1);
+    }
+
+    for (int i = 0; i < C->nrows; i++) {
+        for (int j = 0; j < C->ncols; j++) {
+            C->mat[i][j] = A->mat[i][j] * B->mat[i][j];
+        }
+    }
+}
+
+void backward_pass(Matrix *X, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *Y, Deltas *deltas) {
+    Matrix *one_hot_Y = one_hot(Y);
+    // need to matrix_free one_hot_Y, dZ3, dW3, dA2, dZ2, dA2_dZ2, dW2, dA1, dZ1, dA1_dZ1, DW1 
+    subtract_matrices(layers->A3, one_hot_Y, deltas->dZ3); // dL/dZ3 = A3 - one_hot_Y
+    Matrix A2T = transpose_matrix(layers->A2);               
+    multiply_matrices(deltas->dZ3, &A2T, deltas->dW3);                      // dL/dW3 = dL/dZ3 · A2T
+    Matrix W3T = transpose_matrix(W3); 
+    multiply_matrices(&W3T, deltas->dZ3, deltas->dA2);                       // dL/dA2 = W3T · dL/dZ3
+    deriv_relu(layers->Z2, deltas->dA2_dZ2);      
+    multiply_matrices_elementwise(deltas->dA2_dZ2, deltas->dA2, deltas->dZ2, true);         // dL/dZ2 = dA2/dZ2 * dL/dA2
+    Matrix A1T = transpose_matrix(layers->A1);
+    multiply_matrices(deltas->dZ2, &A1T, deltas->dW2);                      // dL/dW2 = dZ2/dW2 · dL/dZ2
+    Matrix W2T = transpose_matrix(W2);
+    multiply_matrices(&W2T, deltas->dZ2, deltas->dA1);                       // dL/dA1 = dZ2/dA1 · dL/dZ2 = W2T · dL/dZ2
+    
+    deriv_relu(layers->Z1, deltas->dA1_dZ1); 
+    multiply_matrices_elementwise(deltas->dA1_dZ1, deltas->dA1, deltas->dZ1, true); // dL/dZ1 = dA1/dZ1 * dL/dA1
+    Matrix XT = transpose_matrix(X);
+    multiply_matrices(deltas->dZ1, &XT, deltas->dW1);
+
+    free_matrix_arr(A2T);
+    free_matrix_arr(W3T);
+    free_matrix_arr(A1T);
+    free_matrix_arr(W2T);
+    free_matrix_arr(XT);
+    printf("one_hot_Y: (%d, %d)", one_hot_Y->nrows, one_hot_Y->ncols);
+    printf("Y: (%d, %d)", Y->nrows, Y->ncols);
+    free_matrix_struct(one_hot_Y);
+}
+
+void init_deltas(Deltas *deltas, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix* X) {
+    deltas->dZ3 = allocate_matrix(layers->A3->nrows, layers->A3->ncols);
+    printf("dZ3: (%d, %d)\n", deltas->dZ3->nrows, deltas->dZ3->ncols);
+    deltas->dW3 = allocate_matrix(deltas->dZ3->nrows, layers->A2->nrows); // ie A2T->ncols
+    printf("dW3: (%d, %d)\n", deltas->dW3->nrows, deltas->dW3->ncols);
+    deltas->dA2 = allocate_matrix(W3->ncols, deltas->dZ3->ncols);
+    printf("dA2: (%d, %d)\n", deltas->dA2->nrows, deltas->dA2->ncols);
+    deltas->dZ2 = allocate_matrix(deltas->dA2->nrows - 1, deltas->dA2->ncols);
+    printf("dZ2: (%d, %d)\n", deltas->dZ2->nrows, deltas->dZ2->ncols);
+    deltas->dA2_dZ2 = allocate_matrix(layers->Z2->nrows, layers->Z2->ncols);
+    printf("dA2_dZ2: (%d, %d)\n", deltas->dA2_dZ2->nrows, deltas->dA2_dZ2->ncols);
+    deltas->dW2 = allocate_matrix(deltas->dZ2->nrows, layers->A1->nrows); // ie A1T->ncols
+    printf("dW2: (%d, %d)\n", deltas->dW2->nrows, deltas->dW2->ncols);
+    deltas->dA1 = allocate_matrix(W2->ncols, deltas->dZ2->ncols);
+    printf("W2->ncols: %d\n", W2->ncols);
+    printf("dA1: (%d, %d)\n", deltas->dA1->nrows, deltas->dA1->ncols);
+    deltas->dZ1 = allocate_matrix(deltas->dA1->nrows - 1, deltas->dA1->ncols);
+    printf("dZ1: (%d, %d)\n", deltas->dZ1->nrows, deltas->dZ1->ncols);
+    deltas->dA1_dZ1 = allocate_matrix(layers->Z1->nrows, layers->Z1->ncols);
+    printf("dA1_dZ1: (%d, %d)\n", deltas->dA1_dZ1->nrows, deltas->dA1_dZ1->ncols);
+    deltas->dW1 = allocate_matrix(deltas->dZ1->nrows, X->nrows); // ie XT.ncols
+    printf("dW1: (%d, %d)\n", deltas->dW1->nrows, deltas->dW1->ncols);
+}
+
+
+
+void update_weights(Deltas *deltas, Matrix *W1, Matrix *W2, Matrix *W3, float lr) {
+    for (int i = 0; i < W1->nrows; i++) {
+        for (int j = 0; j < W1->ncols; j++) {
+            W1->mat[i][j] -= lr * deltas->dW1->mat[i][j];
+        }
+    }
+
+    for (int i = 0; i < W2->nrows; i++) {
+        for (int j = 0; j < W2->ncols; j++) {
+            W2->mat[i][j] -= lr * deltas->dW2->mat[i][j];
+        }
+    }
+
+    for (int i = 0; i < W3->nrows; i++) {
+        for (int j = 0; j < W3->ncols; j++) {
+            W3->mat[i][j] -= lr * deltas->dW3->mat[i][j];
+        }
+    }
+}
 
 int main(int argc, char *argv[]) {
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values) 
@@ -227,7 +356,7 @@ int main(int argc, char *argv[]) {
     Matrix train_data = { .nrows = 785, .ncols = 40999, .mat = calloc(785, sizeof(float *)) };
     train_test_split(&data, &test_data, &train_data);
     Matrix X_train, X_test;
-    float *Y_train, *Y_test;
+    Matrix Y_train, Y_test;
     XY_split(&test_data, &X_test, &Y_test);
     XY_split(&train_data, &X_train, &Y_train);
     normalize(&X_train, &X_test);
@@ -243,21 +372,38 @@ int main(int argc, char *argv[]) {
     init_weights(&W3);
 
     // gets a subset of the data to train on 
-    Matrix X_in = { .nrows = 785, .ncols = 10, .mat = calloc(785, sizeof(float *)) };
+    Matrix X_in = { .nrows = 785, .ncols = 1, .mat = calloc(785, sizeof(float *)) };
+    Matrix Y_in = { .nrows = 1, .ncols = 1, .mat = malloc(sizeof(float *)) }; 
     for (int i = 0; i < X_in.nrows; i++) {
         X_in.mat[i] = malloc(X_in.ncols * sizeof(float));
     }
-    copy_some_matrix_values(&X_test, &X_in);
-
-    // forward pass, prints average for all input examples
-    Layers *layers = init_layers(&X_in, &W1, &W2, &W3);
-    for (int i = 0; i < 5; i++) {
-        forward_pass(layers, &X_test, &W1, &W2, &W3);
+    for (int i = 0; i < Y_in.nrows; i++) {
+        Y_in.mat[i] = malloc(Y_in.ncols * sizeof(float));
     }
+    copy_some_matrix_values(&X_train, &X_in);
+    copy_some_matrix_values(&Y_train, &Y_in);
 
+
+    // initialize layers and derivatives
+    Layers *layers = init_layers(&X_in, &W1, &W2, &W3);
+    printf("W2: (%d, %d)\n", W2.nrows, W2.ncols);
+    Deltas deltas; 
+    init_deltas(&deltas, layers, &W1, &W2, &W3, &X_in);
+    printf("W2: (%d, %d)\n", W2.nrows, W2.ncols);
+
+    forward_pass(layers, &X_in, &W1, &W2, &W3);
+    printf("W2: (%d, %d)\n", W2.nrows, W2.ncols);
+    backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas);  
+    update_weights(&deltas, &W1, &W2, &W3, 0.05);
+    forward_pass(layers, &X_in, &W1, &W2, &W3);
+    backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas);  
+    update_weights(&deltas, &W1, &W2, &W3, 0.05);
+    forward_pass(layers, &X_in, &W1, &W2, &W3);
+    printf("%f", Y_in.mat[0][0]);
 
     // cleanup
     free_matrix_arr(X_in);
+    free_matrix_arr(Y_in);
     free_matrix_struct(layers->Z1);
     free_matrix_struct(layers->Z2);
     free_matrix_struct(layers->Z3);
@@ -267,11 +413,21 @@ int main(int argc, char *argv[]) {
     free(layers);
     free_matrix_arr(X_test);
     free_matrix_arr(X_train);
-    free(Y_test);
-    free(Y_train);
+    free_matrix_arr(Y_test);
+    free_matrix_arr(Y_train);
     free_matrix_arr(W1);
     free_matrix_arr(W2);
     free_matrix_arr(W3);
+    free_matrix_struct(deltas.dZ3);
+    free_matrix_struct(deltas.dW3);
+    free_matrix_struct(deltas.dA2);
+    free_matrix_struct(deltas.dZ2);
+    free_matrix_struct(deltas.dA2_dZ2);
+    free_matrix_struct(deltas.dW2);
+    free_matrix_struct(deltas.dA1);
+    free_matrix_struct(deltas.dZ1);
+    free_matrix_struct(deltas.dA1_dZ1);
+    free_matrix_struct(deltas.dW1);
     return 0;
 }
 

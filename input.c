@@ -90,10 +90,13 @@ void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data) {
 
 }
 
-void XY_split(Matrix *data, Matrix *X, float **Y) {
-    // copy first row into Y array
-    *Y = (float*)malloc(data->ncols * sizeof(float));
-    memcpy(*Y, data->mat[0], data->ncols * sizeof(float));
+void XY_split(Matrix *data, Matrix *X, Matrix *Y) {
+    // copy first row into Y matrix
+    Y->nrows = 1;
+    Y->ncols = data->ncols;
+    Y->mat = malloc(1 * sizeof(float(*)));
+    Y->mat[0] = malloc(Y->ncols * sizeof(float));
+    memcpy(Y->mat[0], data->mat[0], data->ncols*sizeof(float));
 
 
     // copy the rest of the rows of data into X matrix
