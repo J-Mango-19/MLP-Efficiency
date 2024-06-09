@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdbool.h>
+#include <time.h>
 
 typedef struct {
     int nrows; 
@@ -32,12 +33,22 @@ typedef struct {
     Matrix *dW1;
 } Deltas;
 
+typedef struct {
+    Matrix *one_hot_Y;
+    Matrix *A2T;
+    Matrix *W3T;
+    Matrix *A1T;
+    Matrix *W2T;
+    Matrix *XT;
+} Transpose;
+
+
 Matrix read_csv(const char *filename);
 void free_matrix_arr(Matrix arr);
 void free_matrix_struct(Matrix *arr);
 float random_float();
 void init_weights(Matrix *W);
-Matrix transpose_matrix(Matrix *arr);
+void transpose_matrix(Matrix *arr, Matrix *transposed);
 void XY_split(Matrix *data, Matrix *X, Matrix *Y); 
 void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data);
 void normalize(Matrix *X_train, Matrix *X_test);
@@ -58,8 +69,9 @@ void deriv_relu(Matrix *Z, Matrix *derivative);
 void multiply_matrices_elementwise(Matrix *A, Matrix *B, Matrix *C, bool omit_last_row);
 void init_deltas(Deltas *deltas, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *X);
 void update_weights(Deltas *deltas, Matrix *W1, Matrix *W2, Matrix *W3, float lr);
-Matrix *one_hot(Matrix *Y);
+void one_hot(Matrix *Y, Matrix *one_hot_Y);
 float get_accuracy(Matrix *yhat, Matrix *Y);
 void divide_matrix_elementwise(Matrix *matrix, int divisor);
-
+void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Matrix *Y, Matrix *W2, Matrix *W3, Matrix *X);
+void backward_pass(Matrix *X, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *Y, Deltas *deltas, Transpose *transpose);
 void get_matrix_stats(Matrix *problem);

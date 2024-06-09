@@ -1,15 +1,11 @@
 #include "mnist.h"
 
-Matrix transpose_matrix(Matrix *arr) {
-    float **new_matrix = calloc(arr->ncols, sizeof(float*));
+void transpose_matrix(Matrix *arr, Matrix *transposed) {
     for (int j = 0; j < arr->ncols; j++) {
-        new_matrix[j] = calloc(arr->nrows, sizeof(float));
         for (int i = 0; i < arr->nrows; i++) {
-            new_matrix[j][i] = arr->mat[i][j];
+            transposed->mat[j][i] = arr->mat[i][j];
         }
     }
-    Matrix transposed = { .nrows = arr->ncols, .ncols = arr->nrows, .mat = new_matrix };
-    return transposed;
 }
 
 void free_matrix_arr(Matrix arr) {
@@ -105,12 +101,26 @@ void multiply_matrices(Matrix *A, Matrix *B, Matrix *C) {
         fprintf(stderr, "A: (%d, %d), B: (%d, %d)\n", A->nrows, A->ncols, B->nrows, B->ncols);
         exit(1);
     }
+    float *irowc, *irowa;
 
+    /*
     for (int i = 0; i < C->nrows; i++) {
         for (int j = 0; j < C->ncols; j++) {
             C->mat[i][j] = 0;
             for (int k = 0; k < A->ncols; k++) {
                 C->mat[i][j] += A->mat[i][k] * B->mat[k][j];
+            }
+        }
+    }
+    */
+    // new version testing
+    for (int i = 0; i < C->nrows; i++) {
+        for (int j = 0; j < C->ncols; j++) {
+            C->mat[i][j] = 0;
+            irowc = C->mat[i];
+            irowa = A->mat[i];
+            for (int k = 0; k < A->ncols; k++) {
+                irowc[j] += irowa[k] * B->mat[k][j];
             }
         }
     }
@@ -137,7 +147,7 @@ void copy_some_matrix_values(Matrix *original, Matrix *New, int start_idx, int e
     }
     for (int i = 0; i < New->nrows; i++) {
         for (int j = start_idx; j < end_idx; j++) {
-            New->mat[i][j] = original->mat[i][j];
+            New->mat[i][j - start_idx] = original->mat[i][j];
         }
     }
 }
@@ -225,8 +235,7 @@ Layers *init_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3) {
     return initialized_layers;
 }
 
-Matrix *one_hot(Matrix *Y) {
-    Matrix *one_hot_Y = allocate_matrix(10, Y->ncols);
+void one_hot(Matrix *Y, Matrix* one_hot_Y) {
     for (int i = 0; i < one_hot_Y->nrows; i++) {
         for (int j = 0; j < one_hot_Y->ncols; j++) {
             if (i == Y->mat[0][j]) 
@@ -235,7 +244,6 @@ Matrix *one_hot(Matrix *Y) {
                 one_hot_Y->mat[i][j] = 0;
         }
     }
-    return one_hot_Y;
 }
 
 void subtract_matrices(Matrix *A, Matrix *B, Matrix *C) {
@@ -285,37 +293,30 @@ void divide_matrix_elementwise(Matrix *matrix, int divisor) {
     }
 }
 
-void backward_pass(Matrix *X, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *Y, Deltas *deltas) {
-    Matrix *one_hot_Y = one_hot(Y);
-    subtract_matrices(layers->A3, one_hot_Y, deltas->dZ3); // dL/dZ3 = A3 - one_hot_Y
-    Matrix A2T = transpose_matrix(layers->A2);               
+void backward_pass(Matrix *X, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *Y, Deltas *deltas, Transpose *transpose) {
+    one_hot(Y, transpose->one_hot_Y);
+    subtract_matrices(layers->A3, transpose->one_hot_Y, deltas->dZ3); // dL/dZ3 = A3 - one_hot_Y
+    transpose_matrix(layers->A2, transpose->A2T);               
     // divide matrix below by number of patterns ie batch size here
-    multiply_matrices(deltas->dZ3, &A2T, deltas->dW3);                      // dL/dW3 = dL/dZ3 · A2T
+    multiply_matrices(deltas->dZ3, transpose->A2T, deltas->dW3);                      // dL/dW3 = dL/dZ3 · A2T
     divide_matrix_elementwise(deltas->dW3, Y->ncols);
-    Matrix W3T = transpose_matrix(W3); 
-    multiply_matrices(&W3T, deltas->dZ3, deltas->dA2);                       // dL/dA2 = W3T · dL/dZ3
+    transpose_matrix(W3, transpose->W3T); 
+    multiply_matrices(transpose->W3T, deltas->dZ3, deltas->dA2);                       // dL/dA2 = W3T · dL/dZ3
     deriv_relu(layers->Z2, deltas->dA2_dZ2);      
     multiply_matrices_elementwise(deltas->dA2_dZ2, deltas->dA2, deltas->dZ2, true);         // dL/dZ2 = dA2/dZ2 * dL/dA2
-    Matrix A1T = transpose_matrix(layers->A1);
+    transpose_matrix(layers->A1, transpose->A1T);
     // divide matrix below by number of patterns in batch size here
-    multiply_matrices(deltas->dZ2, &A1T, deltas->dW2);                      // dL/dW2 = dZ2/dW2 · dL/dZ2
+    multiply_matrices(deltas->dZ2, transpose->A1T, deltas->dW2);                      // dL/dW2 = dZ2/dW2 · dL/dZ2
     divide_matrix_elementwise(deltas->dW2, Y->ncols);
-    Matrix W2T = transpose_matrix(W2);
-    multiply_matrices(&W2T, deltas->dZ2, deltas->dA1);                       // dL/dA1 = dZ2/dA1 · dL/dZ2 = W2T · dL/dZ2
-    
+    transpose_matrix(W2, transpose->W2T);
+    multiply_matrices(transpose->W2T, deltas->dZ2, deltas->dA1);                       // dL/dA1 = dZ2/dA1 · dL/dZ2 = W2T · dL/dZ2
     deriv_relu(layers->Z1, deltas->dA1_dZ1); 
     multiply_matrices_elementwise(deltas->dA1_dZ1, deltas->dA1, deltas->dZ1, true); // dL/dZ1 = dA1/dZ1 * dL/dA1
-    Matrix XT = transpose_matrix(X);
-    // divide matrix below by number of patterns in bach size here
-    multiply_matrices(deltas->dZ1, &XT, deltas->dW1);
-    divide_matrix_elementwise(deltas->dW1, Y->ncols);
 
-    free_matrix_arr(A2T);
-    free_matrix_arr(W3T);
-    free_matrix_arr(A1T);
-    free_matrix_arr(W2T);
-    free_matrix_arr(XT);
-    free_matrix_struct(one_hot_Y);
+    transpose_matrix(X, transpose->XT);
+    // divide matrix below by number of patterns in bach size here
+    multiply_matrices(deltas->dZ1, transpose->XT, deltas->dW1);
+    divide_matrix_elementwise(deltas->dW1, Y->ncols);
 }
 
 void init_deltas(Deltas *deltas, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix* X) {
@@ -334,29 +335,29 @@ void init_deltas(Deltas *deltas, Layers *layers, Matrix *W1, Matrix *W2, Matrix 
 void update_weights(Deltas *deltas, Matrix *W1, Matrix *W2, Matrix *W3, float lr) {
     for (int i = 0; i < W3->nrows; i++) {
         for (int j = 0; j < W3->ncols; j++) {
-            W1->mat[i][j] -= lr * deltas->dW1->mat[i][j];
-            deltas->dW1->mat[i][j] = 0;
+            W3->mat[i][j] -= lr * deltas->dW3->mat[i][j];
+            deltas->dW3->mat[i][j] = 0;
         }
     }
 
     for (int i = 0; i < W2->nrows; i++) {
         for (int j = 0; j < W2->ncols; j++) {
             W2->mat[i][j] -= lr * deltas->dW2->mat[i][j];
-            deltas->dW1->mat[i][j] = 0;
+            deltas->dW2->mat[i][j] = 0;
         }
     }
 
-    for (int i = 0; i < W3->nrows; i++) {
-        for (int j = 0; j < W3->ncols; j++) {
-            W3->mat[i][j] -= lr * deltas->dW3->mat[i][j];
-            deltas->dW3->mat[i][j] = 0;
+    for (int i = 0; i < W1->nrows; i++) {
+        for (int j = 0; j < W1->ncols; j++) {
+            W1->mat[i][j] -= lr * deltas->dW1->mat[i][j];
+            deltas->dW1->mat[i][j] = 0;
         }
     }
 }
 
 void get_yhat(Matrix *A, Matrix *yhat) {
     float max;
-    int max_idx;
+    int max_idx = 0;
     for (int j = 0; j < A->ncols; j++) {
         max = 0;
         for (int i = 0; i < A->nrows; i++) {
@@ -379,23 +380,29 @@ float get_accuracy(Matrix *yhat, Matrix *Y) {
     return correct_sum / Y->ncols;
 }
 
-void average_over_columns(Matrix *average, Matrix *original) {
-    for (int i = 0; i < original->nrows; i++) {
-        average->mat[i][0] = 0;
-        for (int j = 0; j < original->ncols; j++) {
-            average->mat[i][0] += original->mat[i][j];
-        }
-        average->mat[i][0] /= original->ncols;
-    }
+void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Matrix *Y, Matrix *W2, Matrix *W3, Matrix *X) {
+    transpose->one_hot_Y = allocate_matrix(10, batch_size);
+    transpose->A2T = allocate_matrix(layers->A2->ncols, layers->A2->nrows);
+    transpose->W3T = allocate_matrix(W3->ncols, W3->nrows);
+    transpose->A1T = allocate_matrix(layers->A1->ncols, layers->A1->nrows);
+    transpose->W2T = allocate_matrix(W2->ncols, W2->nrows);
+    transpose->XT = allocate_matrix(X->ncols, X->nrows);
 }
 
 
 int main(int argc, char *argv[]) {
+    srand(time(NULL));
+    clock_t start_main, end_main;
+    double main_cpu_time;
+    clock_t start, end;
+    double cpu_time_used; 
+
     // hyperparamaters
-    int batch_size = 3;
-    float lr = 0.2;
-    int num_iterations = 4;
+    int batch_size = 10;
+    float lr = 0.1;
+    int num_iterations = 3900;
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values) 
+    start = clock();
     Matrix data = read_csv("MNIST_train.csv");
     Matrix test_data = { .nrows = 785, .ncols = 1000, .mat = calloc(785, sizeof(float *)) };
     Matrix train_data = { .nrows = 785, .ncols = 40999, .mat = calloc(785, sizeof(float *)) };
@@ -436,44 +443,47 @@ int main(int argc, char *argv[]) {
     Layers *layers = init_layers(&X_in, &W1, &W2, &W3);
     Deltas deltas; 
     init_deltas(&deltas, layers, &W1, &W2, &W3, &X_in);
+    Transpose transpose;
+    init_transpose(&transpose, layers, batch_size, &Y_in, &W2, &W3, &X_in);
 
-    /*
-    // train the network. i is the number of training iterations
-    for (int i = 0; i < 20; i++) {
-        printf("\n -----iteration %d ------ \n", i);
+    Layers *layers_test = init_layers(&X_train, &W1, &W2, &W3);
+    Matrix *test_yhat = allocate_matrix(10, Y_train.ncols);
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("Allocation took %f seconds to execute\n", cpu_time_used);
+
+    start_main = clock();
+    for (int i = 0; i < num_iterations; i++) {
+        forward_pass(layers, &X_in, &W1, &W2, &W3);
+        backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas, &transpose);  
+        update_weights(&deltas, &W1, &W2, &W3, lr);
+        //printf("copying from pattern (%d) to pattern (%d)\n", (i + 1) * batch_size, (i + 2) * batch_size);
+        if (i == num_iterations - 1) {
+            float start_matrix, end_matrix;
+            start_matrix = clock();
+            forward_pass(layers_test, &X_train, &W1, &W2, &W3);
+            get_yhat(layers_test->A3, test_yhat);
+            end_matrix = clock();
+            printf("final forward pass took %f seconds\n", (end_matrix - start_matrix) / CLOCKS_PER_SEC);
+            printf("Iteration: %d | Accuracy: %f\n", i, get_accuracy(test_yhat, &Y_train));
+        }
         copy_some_matrix_values(&X_train, &X_in, batch_size * (i + 1), batch_size * (i + 2));   
         copy_some_matrix_values(&Y_train, &Y_in, batch_size * (i + 1), batch_size * (i + 2));   
-        forward_pass(layers, &X_in, &W1, &W2, &W3);
-        // debugging print
-        for (int i = 0; i < layers->Z3->nrows; i++) {
-            printf("Z3[%d] = %f\n", i, layers->Z3->mat[i][0]);
-        }
-        get_yhat(layers->A3, &yhat);
-        printf("Accuracy: %f\n", get_accuracy(&yhat, &Y_in));
-        backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas);  
-        update_weights(&deltas, &W1, &W2, &W3, 0.0001);
     }
-    */
-
-    for (int i = 0; i < num_iterations; i++) {
-        forward_pass(layers, &X_in, &W1, &W2, &W3);
-        backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas);  
-        update_weights(&deltas, &W1, &W2, &W3, lr);
-        get_yhat(layers->A3, &yhat);
-        printf("Accuracy: %f\n", get_accuracy(&yhat, &Y_in));
-    }
-    /*
-    int num_iterations = 200;
-    for (int i = 0; i < num_iterations; i++) {
-        forward_pass(layers, &X_in, &W1, &W2, &W3);
-        backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas);  
-        update_weights(&deltas, &W1, &W2, &W3, 0.1);
-        get_yhat(layers->A3, &yhat);
-        printf("Accuracy: %f\n", get_accuracy(&yhat, &Y_in));
-    }
-    */
+    end_main = clock();
+    main_cpu_time = ((double) (end_main - start_main)) / CLOCKS_PER_SEC;
+    printf("Non-allocation operations of program took %f seconds to execute\n", main_cpu_time);
 
     // cleanup
+    free_matrix_struct(test_yhat);
+    free_matrix_struct(layers_test->Z1);
+    free_matrix_struct(layers_test->Z2);
+    free_matrix_struct(layers_test->Z3);
+    free_matrix_struct(layers_test->A1);
+    free_matrix_struct(layers_test->A2);
+    free_matrix_struct(layers_test->A3);
+    free(layers_test);
+    // evaluation frees above
     free_matrix_arr(X_in);
     free_matrix_arr(Y_in);
     free_matrix_struct(layers->Z1);
@@ -483,6 +493,12 @@ int main(int argc, char *argv[]) {
     free_matrix_struct(layers->A2);
     free_matrix_struct(layers->A3);
     free(layers);
+    free_matrix_struct(transpose.one_hot_Y);
+    free_matrix_struct(transpose.A2T);
+    free_matrix_struct(transpose.W3T);
+    free_matrix_struct(transpose.A1T);
+    free_matrix_struct(transpose.W2T);
+    free_matrix_struct(transpose.XT);
     free_matrix_arr(X_test);
     free_matrix_arr(X_train);
     free_matrix_arr(Y_test);
