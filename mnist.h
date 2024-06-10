@@ -75,3 +75,6 @@ void divide_matrix_elementwise(Matrix *matrix, int divisor);
 void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Matrix *Y, Matrix *W2, Matrix *W3, Matrix *X);
 void backward_pass(Matrix *X, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *Y, Deltas *deltas, Transpose *transpose);
 void get_matrix_stats(Matrix *problem);
+void inference_one_example(Matrix *X_test, Matrix *Y_test, Matrix *W1, Matrix *W2, Matrix *W3, int index);
+void display_matrix(Matrix *X);
+

@@ -3,7 +3,7 @@
 
 Matrix read_csv(const char* filename) {
     Matrix data_matrix;
-    data_matrix.nrows = 41999;
+    data_matrix.nrows = 42000;
     data_matrix.ncols = 785;
     FILE *file = fopen(filename, "r");
     if (!file) {
@@ -35,7 +35,7 @@ Matrix read_csv(const char* filename) {
 
     char line[16000]; // Large enough buffer to hold one line of the CSV file
 
-    for (int i = 1; i < data_matrix.nrows + 1; i++) {
+    for (int i = 0; i < data_matrix.nrows; i++) {
         if (!fgets(line, sizeof(line), file)) {
             fprintf(stderr, "Error reading line %d\n", i);
             // Free allocated memory before returning
@@ -49,7 +49,7 @@ Matrix read_csv(const char* filename) {
         char *token = strtok(line, ",");
         for (int j = 0; j < data_matrix.ncols; j++) {
             if (token) {
-                data[i-1][j] = strtof(token, NULL);
+                data[i][j] = strtof(token, NULL);
                 token = strtok(NULL, ",");
             } else {
                 fprintf(stderr, "Error parsing line %d\n", i);
@@ -72,10 +72,9 @@ void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data) {
     size_t test_rowsize = test_data->ncols * sizeof(float);
     size_t train_rowsize = train_data->ncols * sizeof(float);
     for (int i = 0; i < 785; i++) {
-
         // allocate and store data for one row of train data
         train_data->mat[i] = malloc(train_rowsize);
-        for (int j = 1000; j < 41999; j++) {
+        for (int j = 1000; j < 42000; j++) {
             train_data->mat[i][j-1000] = data->mat[j][i];
         }
 
@@ -101,10 +100,12 @@ void XY_split(Matrix *data, Matrix *X, Matrix *Y) {
 
     // copy the rest of the rows of data into X matrix
     X->ncols = data->ncols;
-    X->nrows = data->nrows - 1;
+    X->nrows = data->nrows - 1; 
     X->mat = malloc(X->nrows * sizeof(float(*)));
     size_t row_size = data->ncols * sizeof(float);
-    for (int i = 1; i < X->nrows + 1; i++) {
+    int rowsum = 0;
+    for (int i = 1; i < X->nrows + 1; i++) { 
+        rowsum ++;
         X->mat[i-1] = malloc(row_size);
         memcpy(X->mat[i-1], data->mat[i], row_size);
     }

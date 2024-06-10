@@ -389,6 +389,64 @@ void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Matrix
     transpose->XT = allocate_matrix(X->ncols, X->nrows);
 }
 
+void inference_one_example(Matrix *X_test, Matrix *Y_test, Matrix *W1, Matrix *W2, Matrix *W3, int index) {
+    Matrix *X_example = allocate_matrix(X_test->nrows, 1);
+    copy_some_matrix_values(X_test, X_example, index, index + 1);
+    if (index == 0)
+        get_matrix_stats(X_example);
+
+    Matrix *yhat = allocate_matrix(1, 1);
+    Layers *layers = init_layers(X_example, W1, W2, W3);
+    Deltas deltas; 
+    init_deltas(&deltas, layers, W1, W2, W3, X_example);
+    Transpose transpose;
+    init_transpose(&transpose, layers, 1, yhat, W2, W3, X_example);
+    forward_pass(layers, X_example, W1, W2, W3);
+    get_yhat(layers->A3, yhat);
+    display_matrix(X_example);
+    printf("Actual: %d, Predicted: %d at index %d\n", (int)Y_test->mat[0][index], (int) yhat->mat[0][0], index);
+    
+    free_matrix_struct(X_example);
+    free_matrix_struct(yhat);
+    free_matrix_struct(deltas.dZ3);
+    free_matrix_struct(deltas.dW3);
+    free_matrix_struct(deltas.dA2);
+    free_matrix_struct(deltas.dZ2);
+    free_matrix_struct(deltas.dA2_dZ2);
+    free_matrix_struct(deltas.dW2);
+    free_matrix_struct(deltas.dA1);
+    free_matrix_struct(deltas.dZ1);
+    free_matrix_struct(deltas.dA1_dZ1);
+    free_matrix_struct(deltas.dW1);
+    
+    free_matrix_struct(layers->Z1);
+    free_matrix_struct(layers->Z2);
+    free_matrix_struct(layers->Z3);
+    free_matrix_struct(layers->A1);
+    free_matrix_struct(layers->A2);
+    free_matrix_struct(layers->A3);
+    free(layers);
+    free_matrix_struct(transpose.one_hot_Y);
+    free_matrix_struct(transpose.A2T);
+    free_matrix_struct(transpose.W3T);
+    free_matrix_struct(transpose.A1T);
+    free_matrix_struct(transpose.W2T);
+    free_matrix_struct(transpose.XT);
+}
+
+void display_matrix(Matrix *X) {
+   printf("\n\n"); 
+    for (int i = 0; i < X->nrows - 1; i++) {
+        if (i % 28 == 0) printf("\n");
+        if (X->mat[i][0] * 255 > 200) printf("*");
+        else if (X->mat[i][0] * 255 > 150) printf("+");
+        else if (X->mat[i][0] * 255 > 100) printf("-");
+        else printf(" ");
+    }
+}
+
+
+
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
@@ -400,12 +458,12 @@ int main(int argc, char *argv[]) {
     // hyperparamaters
     int batch_size = 10;
     float lr = 0.1;
-    int num_iterations = 3900;
+    int num_iterations = 4000;
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values) 
     start = clock();
     Matrix data = read_csv("MNIST_train.csv");
     Matrix test_data = { .nrows = 785, .ncols = 1000, .mat = calloc(785, sizeof(float *)) };
-    Matrix train_data = { .nrows = 785, .ncols = 40999, .mat = calloc(785, sizeof(float *)) };
+    Matrix train_data = { .nrows = 785, .ncols = 41000, .mat = calloc(785, sizeof(float *)) }; // 41999
     train_test_split(&data, &test_data, &train_data);
     Matrix X_train, X_test;
     Matrix Y_train, Y_test;
@@ -457,7 +515,6 @@ int main(int argc, char *argv[]) {
         forward_pass(layers, &X_in, &W1, &W2, &W3);
         backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas, &transpose);  
         update_weights(&deltas, &W1, &W2, &W3, lr);
-        //printf("copying from pattern (%d) to pattern (%d)\n", (i + 1) * batch_size, (i + 2) * batch_size);
         if (i == num_iterations - 1) {
             float start_matrix, end_matrix;
             start_matrix = clock();
@@ -467,12 +524,19 @@ int main(int argc, char *argv[]) {
             printf("final forward pass took %f seconds\n", (end_matrix - start_matrix) / CLOCKS_PER_SEC);
             printf("Iteration: %d | Accuracy: %f\n", i, get_accuracy(test_yhat, &Y_train));
         }
-        copy_some_matrix_values(&X_train, &X_in, batch_size * (i + 1), batch_size * (i + 2));   
-        copy_some_matrix_values(&Y_train, &Y_in, batch_size * (i + 1), batch_size * (i + 2));   
+        // printf("copying from pattern (%d) to pattern (%d)\n", ((i + 1) * batch_size) % X_train.ncols, ((i + 2) * batch_size) % X_train.ncols);
+        copy_some_matrix_values(&X_train, &X_in, (batch_size * (i + 1)) % X_train.ncols, (batch_size * (i + 2)) % X_train.ncols );   
+        copy_some_matrix_values(&Y_train, &Y_in, (batch_size * (i + 1)) % X_train.ncols, (batch_size * (i + 2)) % X_train.ncols);   
     }
+    printf("X_train.ncols = %d\n", X_train.ncols);
     end_main = clock();
     main_cpu_time = ((double) (end_main - start_main)) / CLOCKS_PER_SEC;
     printf("Non-allocation operations of program took %f seconds to execute\n", main_cpu_time);
+    /*
+    for (int index = 30; index < 60; index ++) {
+        inference_one_example(&X_test, &Y_test, &W1, &W2, &W3, index);
+    }
+    */
 
     // cleanup
     free_matrix_struct(test_yhat);
