@@ -408,30 +408,9 @@ void inference_one_example(Matrix *X_test, Matrix *Y_test, Matrix *W1, Matrix *W
     
     free_matrix_struct(X_example);
     free_matrix_struct(yhat);
-    free_matrix_struct(deltas.dZ3);
-    free_matrix_struct(deltas.dW3);
-    free_matrix_struct(deltas.dA2);
-    free_matrix_struct(deltas.dZ2);
-    free_matrix_struct(deltas.dA2_dZ2);
-    free_matrix_struct(deltas.dW2);
-    free_matrix_struct(deltas.dA1);
-    free_matrix_struct(deltas.dZ1);
-    free_matrix_struct(deltas.dA1_dZ1);
-    free_matrix_struct(deltas.dW1);
-    
-    free_matrix_struct(layers->Z1);
-    free_matrix_struct(layers->Z2);
-    free_matrix_struct(layers->Z3);
-    free_matrix_struct(layers->A1);
-    free_matrix_struct(layers->A2);
-    free_matrix_struct(layers->A3);
-    free(layers);
-    free_matrix_struct(transpose.one_hot_Y);
-    free_matrix_struct(transpose.A2T);
-    free_matrix_struct(transpose.W3T);
-    free_matrix_struct(transpose.A1T);
-    free_matrix_struct(transpose.W2T);
-    free_matrix_struct(transpose.XT);
+    free_deltas(&deltas);
+    free_layers(layers);
+    free_transpose(&transpose);
 }
 
 void display_matrix(Matrix *X) {
@@ -445,7 +424,37 @@ void display_matrix(Matrix *X) {
     }
 }
 
+void free_layers(Layers *layers) {
+    free_matrix_struct(layers->Z1);
+    free_matrix_struct(layers->Z2);
+    free_matrix_struct(layers->Z3);
+    free_matrix_struct(layers->A1);
+    free_matrix_struct(layers->A2);
+    free_matrix_struct(layers->A3);
+    free(layers);
+}
 
+void free_transpose(Transpose *transpose) {
+    free_matrix_struct(transpose->one_hot_Y);
+    free_matrix_struct(transpose->A2T);
+    free_matrix_struct(transpose->W3T);
+    free_matrix_struct(transpose->A1T);
+    free_matrix_struct(transpose->W2T);
+    free_matrix_struct(transpose->XT);
+}
+
+void free_deltas(Deltas *deltas) {
+    free_matrix_struct(deltas->dZ3);
+    free_matrix_struct(deltas->dW3);
+    free_matrix_struct(deltas->dA2);
+    free_matrix_struct(deltas->dZ2);
+    free_matrix_struct(deltas->dA2_dZ2);
+    free_matrix_struct(deltas->dW2);
+    free_matrix_struct(deltas->dA1);
+    free_matrix_struct(deltas->dZ1);
+    free_matrix_struct(deltas->dA1_dZ1);
+    free_matrix_struct(deltas->dW1);
+}    
 
 
 int main(int argc, char *argv[]) {
@@ -456,9 +465,9 @@ int main(int argc, char *argv[]) {
     double cpu_time_used; 
 
     // hyperparamaters
-    int batch_size = 10;
-    float lr = 0.1;
-    int num_iterations = 4000;
+    int batch_size = 1;
+    float lr = 0.05;
+    int num_iterations = 2;
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values) 
     start = clock();
     Matrix data = read_csv("MNIST_train.csv");
@@ -504,65 +513,51 @@ int main(int argc, char *argv[]) {
     Transpose transpose;
     init_transpose(&transpose, layers, batch_size, &Y_in, &W2, &W3, &X_in);
 
-    Layers *layers_test = init_layers(&X_train, &W1, &W2, &W3);
-    Matrix *test_yhat = allocate_matrix(10, Y_train.ncols);
+    Layers *layers_eval = init_layers(&X_train, &W1, &W2, &W3);
+    Matrix *eval_yhat = allocate_matrix(10, Y_train.ncols);
     end = clock();
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
     printf("Allocation took %f seconds to execute\n", cpu_time_used);
 
     start_main = clock();
+    int start_idx, end_idx;
     for (int i = 0; i < num_iterations; i++) {
         forward_pass(layers, &X_in, &W1, &W2, &W3);
         backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas, &transpose);  
-        update_weights(&deltas, &W1, &W2, &W3, lr);
+            update_weights(&deltas, &W1, &W2, &W3, lr);
         if (i == num_iterations - 1) {
             float start_matrix, end_matrix;
             start_matrix = clock();
-            forward_pass(layers_test, &X_train, &W1, &W2, &W3);
-            get_yhat(layers_test->A3, test_yhat);
+            forward_pass(layers_eval, &X_train, &W1, &W2, &W3);
+            get_yhat(layers_eval->A3, eval_yhat);
             end_matrix = clock();
             printf("final forward pass took %f seconds\n", (end_matrix - start_matrix) / CLOCKS_PER_SEC);
-            printf("Iteration: %d | Accuracy: %f\n", i, get_accuracy(test_yhat, &Y_train));
+            printf("Iteration: %d | Accuracy: %f\n", i, get_accuracy(eval_yhat, &Y_train));
         }
-        // printf("copying from pattern (%d) to pattern (%d)\n", ((i + 1) * batch_size) % X_train.ncols, ((i + 2) * batch_size) % X_train.ncols);
-        copy_some_matrix_values(&X_train, &X_in, (batch_size * (i + 1)) % X_train.ncols, (batch_size * (i + 2)) % X_train.ncols );   
-        copy_some_matrix_values(&Y_train, &Y_in, (batch_size * (i + 1)) % X_train.ncols, (batch_size * (i + 2)) % X_train.ncols);   
+        start_idx = ((i + 1) * batch_size) % X_train.ncols;
+        end_idx = ((i + 2) * batch_size) % X_train.ncols;
+        if (end_idx == 0) {
+            end_idx = X_train.ncols;
+        }
+        //printf("copying from pattern (%d) to pattern (%d)\n", start_idx, end_idx);
+        copy_some_matrix_values(&X_train, &X_in, start_idx, end_idx);   
+        copy_some_matrix_values(&Y_train, &Y_in, start_idx, end_idx);   
     }
     printf("X_train.ncols = %d\n", X_train.ncols);
     end_main = clock();
     main_cpu_time = ((double) (end_main - start_main)) / CLOCKS_PER_SEC;
     printf("Non-allocation operations of program took %f seconds to execute\n", main_cpu_time);
-    /*
-    for (int index = 30; index < 60; index ++) {
+    for (int index = 30; index < 32; index ++) {
         inference_one_example(&X_test, &Y_test, &W1, &W2, &W3, index);
     }
-    */
 
     // cleanup
-    free_matrix_struct(test_yhat);
-    free_matrix_struct(layers_test->Z1);
-    free_matrix_struct(layers_test->Z2);
-    free_matrix_struct(layers_test->Z3);
-    free_matrix_struct(layers_test->A1);
-    free_matrix_struct(layers_test->A2);
-    free_matrix_struct(layers_test->A3);
-    free(layers_test);
-    // evaluation frees above
+    free_matrix_struct(eval_yhat);
+    free_layers(layers_eval);
     free_matrix_arr(X_in);
     free_matrix_arr(Y_in);
-    free_matrix_struct(layers->Z1);
-    free_matrix_struct(layers->Z2);
-    free_matrix_struct(layers->Z3);
-    free_matrix_struct(layers->A1);
-    free_matrix_struct(layers->A2);
-    free_matrix_struct(layers->A3);
-    free(layers);
-    free_matrix_struct(transpose.one_hot_Y);
-    free_matrix_struct(transpose.A2T);
-    free_matrix_struct(transpose.W3T);
-    free_matrix_struct(transpose.A1T);
-    free_matrix_struct(transpose.W2T);
-    free_matrix_struct(transpose.XT);
+    free_layers(layers);
+    free_transpose(&transpose);
     free_matrix_arr(X_test);
     free_matrix_arr(X_train);
     free_matrix_arr(Y_test);
@@ -571,16 +566,7 @@ int main(int argc, char *argv[]) {
     free_matrix_arr(W1);
     free_matrix_arr(W2);
     free_matrix_arr(W3);
-    free_matrix_struct(deltas.dZ3);
-    free_matrix_struct(deltas.dW3);
-    free_matrix_struct(deltas.dA2);
-    free_matrix_struct(deltas.dZ2);
-    free_matrix_struct(deltas.dA2_dZ2);
-    free_matrix_struct(deltas.dW2);
-    free_matrix_struct(deltas.dA1);
-    free_matrix_struct(deltas.dZ1);
-    free_matrix_struct(deltas.dA1_dZ1);
-    free_matrix_struct(deltas.dW1);
+    free_deltas(&deltas);
     printf("All memory frees successful\n");
     return 0;
 }

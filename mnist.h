@@ -77,4 +77,7 @@ void backward_pass(Matrix *X, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3
 void get_matrix_stats(Matrix *problem);
 void inference_one_example(Matrix *X_test, Matrix *Y_test, Matrix *W1, Matrix *W2, Matrix *W3, int index);
 void display_matrix(Matrix *X);
+void free_layers(Layers *layers);
+void free_transpose(Transpose *transpose);
+void free_deltas(Deltas *deltas);
 
