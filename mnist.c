@@ -456,18 +456,18 @@ void free_deltas(Deltas *deltas) {
     free_matrix_struct(deltas->dW1);
 }    
 
-
 int main(int argc, char *argv[]) {
-    srand(time(NULL));
+    srand(time(NULL)); // ensures random weight initialization
     clock_t start_main, end_main;
     double main_cpu_time;
     clock_t start, end;
     double cpu_time_used; 
 
     // hyperparamaters
-    int batch_size = 1;
-    float lr = 0.05;
-    int num_iterations = 2;
+    int batch_size = 100;
+    float lr = 0.1;
+    int num_iterations = 10000;
+
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values) 
     start = clock();
     Matrix data = read_csv("MNIST_train.csv");
@@ -512,7 +512,6 @@ int main(int argc, char *argv[]) {
     init_deltas(&deltas, layers, &W1, &W2, &W3, &X_in);
     Transpose transpose;
     init_transpose(&transpose, layers, batch_size, &Y_in, &W2, &W3, &X_in);
-
     Layers *layers_eval = init_layers(&X_train, &W1, &W2, &W3);
     Matrix *eval_yhat = allocate_matrix(10, Y_train.ncols);
     end = clock();
@@ -524,14 +523,10 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < num_iterations; i++) {
         forward_pass(layers, &X_in, &W1, &W2, &W3);
         backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas, &transpose);  
-            update_weights(&deltas, &W1, &W2, &W3, lr);
-        if (i == num_iterations - 1) {
-            float start_matrix, end_matrix;
-            start_matrix = clock();
+        update_weights(&deltas, &W1, &W2, &W3, lr);
+        if (i % 100  == 0) {
             forward_pass(layers_eval, &X_train, &W1, &W2, &W3);
             get_yhat(layers_eval->A3, eval_yhat);
-            end_matrix = clock();
-            printf("final forward pass took %f seconds\n", (end_matrix - start_matrix) / CLOCKS_PER_SEC);
             printf("Iteration: %d | Accuracy: %f\n", i, get_accuracy(eval_yhat, &Y_train));
         }
         start_idx = ((i + 1) * batch_size) % X_train.ncols;
@@ -547,7 +542,7 @@ int main(int argc, char *argv[]) {
     end_main = clock();
     main_cpu_time = ((double) (end_main - start_main)) / CLOCKS_PER_SEC;
     printf("Non-allocation operations of program took %f seconds to execute\n", main_cpu_time);
-    for (int index = 30; index < 32; index ++) {
+    for (int index = 30; index < 60; index ++) {
         inference_one_example(&X_test, &Y_test, &W1, &W2, &W3, index);
     }
 
