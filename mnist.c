@@ -1,3 +1,8 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <time.h>
 #include "mnist.h"
 
 void transpose_matrix(Matrix *arr, Matrix *transposed) {
@@ -172,15 +177,6 @@ void get_matrix_stats(Matrix *problem) {
         printf("Max of row %d i: %f\n", i, max);
     }
 }
-
-void set_matrix_to_zeros(Matrix *Z) {
-    for (int i = 0; i < Z->nrows; i++) {
-        for (int j= 0; j < Z->ncols; j++) {
-            Z->mat[i][j] = 0;
-        }
-    }
-}
-
 
 void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3) { 
     
@@ -466,7 +462,7 @@ int main(int argc, char *argv[]) {
     // hyperparamaters
     int batch_size = 100;
     float lr = 0.1;
-    int num_iterations = 10000;
+    int num_iterations = 20;
 
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values) 
     start = clock();
@@ -524,7 +520,7 @@ int main(int argc, char *argv[]) {
         forward_pass(layers, &X_in, &W1, &W2, &W3);
         backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas, &transpose);  
         update_weights(&deltas, &W1, &W2, &W3, lr);
-        if (i % 100  == 0) {
+        if (i % 2 == 0) {
             forward_pass(layers_eval, &X_train, &W1, &W2, &W3);
             get_yhat(layers_eval->A3, eval_yhat);
             printf("Iteration: %d | Accuracy: %f\n", i, get_accuracy(eval_yhat, &Y_train));

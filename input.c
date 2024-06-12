@@ -1,4 +1,7 @@
 #include "mnist.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
 
 Matrix read_csv(const char* filename) {

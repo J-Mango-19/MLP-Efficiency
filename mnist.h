@@ -1,16 +1,13 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 #include <stdbool.h>
-#include <time.h>
 
+// holds a pointer to a 2d array of floats and its dimensions
 typedef struct {
     int nrows; 
     int ncols; 
     float **mat;
 } Matrix;
 
+// holds the unactivated (Z) and activated (A) layers of the net
 typedef struct {
     Matrix *Z1;
     Matrix *Z2;
@@ -20,6 +17,7 @@ typedef struct {
     Matrix *A3;
 } Layers;
 
+// holds the gradient matrices
 typedef struct {
     Matrix *dZ3;
     Matrix *dW3;
@@ -33,6 +31,7 @@ typedef struct {
     Matrix *dW1;
 } Deltas;
 
+// holds miscellaneous allocated matrices in order to avoid repetitive allocation
 typedef struct {
     Matrix *one_hot_Y;
     Matrix *A2T;
@@ -42,42 +41,53 @@ typedef struct {
     Matrix *XT;
 } Transpose;
 
-
-Matrix read_csv(const char *filename);
-void free_matrix_arr(Matrix arr);
-void free_matrix_struct(Matrix *arr);
-float random_float();
+// dynamic memory allocation
+Matrix *allocate_matrix(int nrows, int ncols);
+Layers *init_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
+void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Matrix *Y, Matrix *W2, Matrix *W3, Matrix *X);
+void init_deltas(Deltas *deltas, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *X);
 void init_weights(Matrix *W);
+
+
+// input data processing
+Matrix read_csv(const char *filename);
 void transpose_matrix(Matrix *arr, Matrix *transposed);
 void XY_split(Matrix *data, Matrix *X, Matrix *Y); 
 void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data);
 void normalize(Matrix *X_train, Matrix *X_test);
+void append_bias_input(Matrix *X_train, Matrix *X_test);
+
+
+// activation functions
 void softmax(Matrix *Z);
 void relu(Matrix *Z);
+
+// matrix operations 
 void multiply_matrices(Matrix *A, Matrix *B, Matrix *C); 
-void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
-Layers *init_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
-Layers *init_avg_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
-void append_bias_factor(Matrix *A);
-void append_bias_input(Matrix *X_train, Matrix *X_test);
+void multiply_matrices_elementwise(Matrix *A, Matrix *B, Matrix *C, bool omit_last_row);
 void copy_matrix_values(Matrix *original, Matrix *New);
 void copy_some_matrix_values(Matrix *original, Matrix *New, int start_index, int end_index);
-void set_matrix_to_zeros(Matrix *Z);
-void subtract_matrices(Matrix *A, Matrix *B, Matrix *C);
-Matrix *allocate_matrix(int nrows, int ncols);
-void deriv_relu(Matrix *Z, Matrix *derivative);
-void multiply_matrices_elementwise(Matrix *A, Matrix *B, Matrix *C, bool omit_last_row);
-void init_deltas(Deltas *deltas, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *X);
-void update_weights(Deltas *deltas, Matrix *W1, Matrix *W2, Matrix *W3, float lr);
-void one_hot(Matrix *Y, Matrix *one_hot_Y);
-float get_accuracy(Matrix *yhat, Matrix *Y);
-void divide_matrix_elementwise(Matrix *matrix, int divisor);
-void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Matrix *Y, Matrix *W2, Matrix *W3, Matrix *X);
-void backward_pass(Matrix *X, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *Y, Deltas *deltas, Transpose *transpose);
-void get_matrix_stats(Matrix *problem);
-void inference_one_example(Matrix *X_test, Matrix *Y_test, Matrix *W1, Matrix *W2, Matrix *W3, int index);
 void display_matrix(Matrix *X);
+void divide_matrix_elementwise(Matrix *matrix, int divisor);
+void get_matrix_stats(Matrix *problem);
+void subtract_matrices(Matrix *A, Matrix *B, Matrix *C);
+void one_hot(Matrix *Y, Matrix *one_hot_Y);
+
+// neural net commands
+void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
+void inference_one_example(Matrix *X_test, Matrix *Y_test, Matrix *W1, Matrix *W2, Matrix *W3, int index);
+void backward_pass(Matrix *X, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *Y, Deltas *deltas, Transpose *transpose);
+void update_weights(Deltas *deltas, Matrix *W1, Matrix *W2, Matrix *W3, float lr);
+float get_accuracy(Matrix *yhat, Matrix *Y);
+
+// dynamic memory freeing functions 
 void free_layers(Layers *layers);
 void free_transpose(Transpose *transpose);
 void free_deltas(Deltas *deltas);
+void free_matrix_arr(Matrix arr);
+void free_matrix_struct(Matrix *arr);
 
+// unclassified
+float random_float();
+void append_bias_factor(Matrix *A);
+void deriv_relu(Matrix *Z, Matrix *derivative);
