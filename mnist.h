@@ -66,7 +66,7 @@ void relu(Matrix *Z);
 void multiply_matrices(Matrix *A, Matrix *B, Matrix *C); 
 void multiply_matrices_elementwise(Matrix *A, Matrix *B, Matrix *C, bool omit_last_row);
 void copy_matrix_values(Matrix *original, Matrix *New);
-void copy_some_matrix_values(Matrix *original, Matrix *New, int start_index, int end_index);
+void copy_some_matrix_values(Matrix *original, Matrix *New, int start_index, int end_index, bool allow_wrap);
 void display_matrix(Matrix *X);
 void divide_matrix_elementwise(Matrix *matrix, int divisor);
 void get_matrix_stats(Matrix *problem);

@@ -36,7 +36,7 @@ float random_float() {
 void init_weights(Matrix *W) {
     // Initialize every value of each matrix according to a uniform distribution on (-0.5, 0.5)
     for (int i = 0; i < W->nrows; i++) {
-        W->mat[i] = calloc(W->ncols, sizeof(float));
+        W->mat[i] = malloc(W->ncols * sizeof(float));
         for (int j = 0; j < W->ncols; j++) {
             W->mat[i][j] = random_float() - 0.5;
         }
@@ -93,20 +93,24 @@ Matrix *allocate_matrix(int nrows, int ncols) {
     Matrix *M = malloc(sizeof(Matrix));
     M->nrows = nrows;
     M->ncols = ncols;
-    M->mat = calloc(nrows, sizeof(float *));
+    M->mat = malloc(nrows * sizeof(float *));
     for (int i = 0; i < nrows; i++) {
-        M->mat[i] = calloc(ncols, sizeof(float));
+        M->mat[i] = malloc(ncols * sizeof(float));
     }
     return M;
 }
 
 void multiply_matrices(Matrix *A, Matrix *B, Matrix *C) {
+    // reduce linked list operations by storing pointers
+    float **Amat = A->mat;
+    float **Bmat = B->mat;
+    float **Cmat = C->mat;
+
     if (A->ncols != B->nrows) {
         fprintf(stderr, "Error! Factor matrix dimensions incompatible\n");
         fprintf(stderr, "A: (%d, %d), B: (%d, %d)\n", A->nrows, A->ncols, B->nrows, B->ncols);
         exit(1);
     }
-    float *irowc, *irowa;
 
     /*
     for (int i = 0; i < C->nrows; i++) {
@@ -118,17 +122,38 @@ void multiply_matrices(Matrix *A, Matrix *B, Matrix *C) {
         }
     }
     */
+    /*
     // new version testing
+    float *irowc, *irowa;
     for (int i = 0; i < C->nrows; i++) {
         for (int j = 0; j < C->ncols; j++) {
-            C->mat[i][j] = 0;
-            irowc = C->mat[i];
-            irowa = A->mat[i];
+            Cmat[i][j] = 0;
+            irowc = Cmat[i];
+            irowa = Amat[i];
             for (int k = 0; k < A->ncols; k++) {
-                irowc[j] += irowa[k] * B->mat[k][j];
+                irowc[j] += irowa[k] * Bmat[k][j];
             }
         }
     }
+    */
+    // newest version ntesting
+    // set the matrix to zero
+    size_t rowsize = C->ncols * sizeof(float);
+    for (int i = 0; i < C->nrows; i++) {
+        memset(Cmat[i], 0, rowsize);
+    }
+
+    // perform matmul loop in different order
+            for (int k = 0; k < A->ncols; k++) {
+    for (int i = 0; i < C->nrows; i++) {
+        for (int j = 0; j < C->ncols; j++) {
+                Cmat[i][j] += Amat[i][k] * Bmat[k][j];
+            }
+        }
+    }
+
+
+
 }
 
 // use this function to copy a new matrix that is larger than the original (for example, copying Z values into A matrices, which are larger to hold bias factor)
@@ -141,21 +166,45 @@ void copy_matrix_values(Matrix *original, Matrix *New) {
 }
 
 // use this fxn to copy a subset of values from a larger matrix into a smaller one (for example, copying X values into a batch matrix)
-void copy_some_matrix_values(Matrix *original, Matrix *New, int start_idx, int end_idx) {
-    if (end_idx > original->ncols) {
+void copy_some_matrix_values(Matrix *original, Matrix *New, int start_idx, int end_idx, bool allow_wrap) {
+    bool execute_wrap = false;
+    if (end_idx > original->ncols && !allow_wrap) {
         fprintf(stderr, "Error! attempted to copy a piece of a matrix out of original matrix dimensions");
         exit(1);
     }
-    if (end_idx - start_idx != New->ncols) {
+    else if (end_idx - start_idx < 0 && allow_wrap) {
+        execute_wrap = true; // the end index has looped around to the beginning of the original matrix, so we can't do a simple copy 
+    }
+    if (end_idx - start_idx != New->ncols && !allow_wrap) {
+        printf("end_idx = %d, start_idx = %d, end-start = %d, != New->ncols = %d\n", end_idx, start_idx, end_idx-start_idx, New->ncols);
         fprintf(stderr, "Error! copy size != new matrix size");
         exit(1);
     }
-    for (int i = 0; i < New->nrows; i++) {
-        for (int j = start_idx; j < end_idx; j++) {
-            New->mat[i][j - start_idx] = original->mat[i][j];
+    if (!execute_wrap) {
+        for (int i = 0; i < New->nrows; i++) {
+            for (int j = start_idx; j < end_idx; j++) {
+                New->mat[i][j - start_idx] = original->mat[i][j];
+            }
+        }
+    }
+    else {
+        // fill out the values that we can until the end
+        int values_till_end = original->ncols - start_idx;
+        for (int i = 0; i < New->nrows; i++) {
+            for (int j = start_idx; j < New->ncols; j++) {
+                New->mat[i][j - start_idx] = original->mat[i][j];
+            }
+        }
+
+        // fill out the remaining values using the beginning of the original matrix
+        for (int i = 0; i < New->nrows; i++) {
+            for ( int j = 0; j < New->ncols - values_till_end; j++) {
+                New->mat[i][j] = original->mat[i][j];
+            }
         }
     }
 }
+
 
 void append_bias_factor(Matrix *A) {
     for (int j = 0; j < A->ncols; j++) {
@@ -387,7 +436,7 @@ void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Matrix
 
 void inference_one_example(Matrix *X_test, Matrix *Y_test, Matrix *W1, Matrix *W2, Matrix *W3, int index) {
     Matrix *X_example = allocate_matrix(X_test->nrows, 1);
-    copy_some_matrix_values(X_test, X_example, index, index + 1);
+    copy_some_matrix_values(X_test, X_example, index, index + 1, false);
     if (index == 0)
         get_matrix_stats(X_example);
 
@@ -454,7 +503,7 @@ void free_deltas(Deltas *deltas) {
 
 int main(int argc, char *argv[]) {
     srand(time(NULL)); // ensures random weight initialization
-    clock_t start_main, end_main;
+    clock_t start_main, end_main, start_inference, end_inference;
     double main_cpu_time;
     clock_t start, end;
     double cpu_time_used; 
@@ -462,13 +511,13 @@ int main(int argc, char *argv[]) {
     // hyperparamaters
     int batch_size = 100;
     float lr = 0.1;
-    int num_iterations = 20;
+    int num_iterations = 1000;
 
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values) 
     start = clock();
     Matrix data = read_csv("MNIST_train.csv");
-    Matrix test_data = { .nrows = 785, .ncols = 1000, .mat = calloc(785, sizeof(float *)) };
-    Matrix train_data = { .nrows = 785, .ncols = 41000, .mat = calloc(785, sizeof(float *)) }; // 41999
+    Matrix test_data = { .nrows = 785, .ncols = 1000, .mat = malloc(785 * sizeof(float *)) };
+    Matrix train_data = { .nrows = 785, .ncols = 41000, .mat = malloc(785 * sizeof(float *)) }; // 41999
     train_test_split(&data, &test_data, &train_data);
     Matrix X_train, X_test;
     Matrix Y_train, Y_test;
@@ -486,7 +535,7 @@ int main(int argc, char *argv[]) {
     init_weights(&W3);
 
     // gets a subset of the data to train on 
-    Matrix X_in = { .nrows = 785, .ncols = batch_size, .mat = calloc(785, sizeof(float *)) };
+    Matrix X_in = { .nrows = 785, .ncols = batch_size, .mat = malloc(785 * sizeof(float *)) };
     Matrix Y_in = { .nrows = 1, .ncols = batch_size, .mat = malloc(sizeof(float *)) }; 
     Matrix yhat = { .nrows = 10, .ncols = batch_size, .mat = malloc(10 * sizeof(float *))};
     for (int i = 0; i < X_in.nrows; i++) {
@@ -498,8 +547,8 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < yhat.nrows; i++) {
         yhat.mat[i] = malloc(yhat.ncols * sizeof(float));
     }
-    copy_some_matrix_values(&X_train, &X_in, 0, batch_size);
-    copy_some_matrix_values(&Y_train, &Y_in, 0, batch_size);
+    copy_some_matrix_values(&X_train, &X_in, 0, batch_size, false);
+    copy_some_matrix_values(&Y_train, &Y_in, 0, batch_size, false);
 
 
     // initialize layers and derivatives
@@ -517,28 +566,33 @@ int main(int argc, char *argv[]) {
     start_main = clock();
     int start_idx, end_idx;
     for (int i = 0; i < num_iterations; i++) {
+        if (i == 1000) lr = lr * 0.5; 
         forward_pass(layers, &X_in, &W1, &W2, &W3);
         backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas, &transpose);  
         update_weights(&deltas, &W1, &W2, &W3, lr);
-        if (i % 2 == 0) {
+        if (i % 100 == 0) {
+            start_inference = clock();
             forward_pass(layers_eval, &X_train, &W1, &W2, &W3);
+            end_inference = clock();
             get_yhat(layers_eval->A3, eval_yhat);
             printf("Iteration: %d | Accuracy: %f\n", i, get_accuracy(eval_yhat, &Y_train));
+            printf("inference time for train dataset: %lf\n", ((double) (end_inference - start_inference)) / CLOCKS_PER_SEC);
         }
+
         start_idx = ((i + 1) * batch_size) % X_train.ncols;
         end_idx = ((i + 2) * batch_size) % X_train.ncols;
         if (end_idx == 0) {
             end_idx = X_train.ncols;
         }
         //printf("copying from pattern (%d) to pattern (%d)\n", start_idx, end_idx);
-        copy_some_matrix_values(&X_train, &X_in, start_idx, end_idx);   
-        copy_some_matrix_values(&Y_train, &Y_in, start_idx, end_idx);   
+        copy_some_matrix_values(&X_train, &X_in, start_idx, end_idx, true);   
+        copy_some_matrix_values(&Y_train, &Y_in, start_idx, end_idx, true);   
     }
     printf("X_train.ncols = %d\n", X_train.ncols);
     end_main = clock();
     main_cpu_time = ((double) (end_main - start_main)) / CLOCKS_PER_SEC;
     printf("Non-allocation operations of program took %f seconds to execute\n", main_cpu_time);
-    for (int index = 30; index < 60; index ++) {
+    for (int index = 300; index < 317; index ++) {
         inference_one_example(&X_test, &Y_test, &W1, &W2, &W3, index);
     }
 
