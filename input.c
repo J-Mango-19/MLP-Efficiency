@@ -155,3 +155,71 @@ void append_bias_input(Matrix *X_train, Matrix *X_test) {
     X_test->mat = new_arr_test;
 }
 
+void usage(int code) {
+    printf("usage: \n");
+    printf("./mnist -<flag1> -<flag2>\n");
+    printf("flags: \n");
+    printf("    -h for help\n");
+    printf("    -lr sets learning rate\n");
+    printf("    -batch_size sets batch size\n");
+    printf("    -iterations sets number of training iterations\n");
+    printf("    -display <num1> <num2> displays digits and their predictions from the test dataset\n");
+    printf("    -nodisplay turns automatic display examples off\n");
+    printf("ensure 0 < num1 < num2 < 1000 as there are 1000 test digits\n");
+    printf("    -status_interval sets the interval that training accuracy will be displayed\n");
+    printf("Example usage: ./mnist -lr 0.05 -batch_size 20 -status_interval 200\n");
+    exit(code);
+}
+
+
+Preferences *get_input(int argc, char *argv[]) {
+    Preferences *preferences = malloc(sizeof(Preferences)); 
+    preferences->lr = 0.1;
+    preferences->batch_size = 100;
+    preferences->num_iterations = 10000;
+    preferences->display_start = 100;
+    preferences->display_end = 105;
+    preferences->status_interval = 100;
+
+    char arg[256];
+    for (int i = 1; i < argc; i++) {
+        strcpy(arg, argv[i]);
+        if (strcmp("-h", arg) == 0) {
+            usage(0);
+        }
+        else if (strcmp("-lr", arg) == 0) {
+            i++;
+            preferences->lr = atof(argv[i]);
+        }
+        else if (strcmp("-batch_size", arg) == 0) {
+            i++; 
+            preferences->batch_size = atoi(argv[i]);
+        }
+        else if (strcmp("-iterations", arg) == 0) {
+            i++;
+            preferences->num_iterations = atoi(argv[i]);
+        }
+        else if (strcmp("-display", arg) == 0) {
+            i++;
+            preferences->display_start = atoi(argv[i]);
+            i++;
+            preferences->display_end = atoi(argv[i]);
+        }
+        else if (strcmp("-nodisplay", arg) == 0) {
+            preferences->display_start = 0;
+            preferences->display_end = 0;
+        }
+        else if (strcmp("-status_interval", arg) == 0) {
+            i++;
+            preferences->status_interval = atoi(argv[i]);
+        }
+        else usage(1);
+    }
+
+    if (!(preferences->display_start < preferences->display_end && preferences->display_start >= 0 && preferences->display_end < 1000)) {
+        usage(1);
+    }
+    return preferences;
+}
+     
+

@@ -503,15 +503,13 @@ void free_deltas(Deltas *deltas) {
 
 int main(int argc, char *argv[]) {
     srand(time(NULL)); // ensures random weight initialization
-    clock_t start_main, end_main, start_inference, end_inference;
+    Preferences *preferences = get_input(argc, argv);
+    clock_t start_operations, end_operations, start_inference, end_inference;
     double main_cpu_time;
     clock_t start, end;
     double cpu_time_used; 
 
-    // hyperparamaters
-    int batch_size = 100;
-    float lr = 0.1;
-    int num_iterations = 1000;
+
 
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values) 
     start = clock();
@@ -535,9 +533,9 @@ int main(int argc, char *argv[]) {
     init_weights(&W3);
 
     // gets a subset of the data to train on 
-    Matrix X_in = { .nrows = 785, .ncols = batch_size, .mat = malloc(785 * sizeof(float *)) };
-    Matrix Y_in = { .nrows = 1, .ncols = batch_size, .mat = malloc(sizeof(float *)) }; 
-    Matrix yhat = { .nrows = 10, .ncols = batch_size, .mat = malloc(10 * sizeof(float *))};
+    Matrix X_in = { .nrows = 785, .ncols = preferences->batch_size, .mat = malloc(785 * sizeof(float *)) };
+    Matrix Y_in = { .nrows = 1, .ncols = preferences->batch_size, .mat = malloc(sizeof(float *)) }; 
+    Matrix yhat = { .nrows = 10, .ncols = preferences->batch_size, .mat = malloc(10 * sizeof(float *))};
     for (int i = 0; i < X_in.nrows; i++) {
         X_in.mat[i] = malloc(X_in.ncols * sizeof(float));
     }
@@ -547,8 +545,8 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < yhat.nrows; i++) {
         yhat.mat[i] = malloc(yhat.ncols * sizeof(float));
     }
-    copy_some_matrix_values(&X_train, &X_in, 0, batch_size, false);
-    copy_some_matrix_values(&Y_train, &Y_in, 0, batch_size, false);
+    copy_some_matrix_values(&X_train, &X_in, 0, preferences->batch_size, false);
+    copy_some_matrix_values(&Y_train, &Y_in, 0, preferences->batch_size, false);
 
 
     // initialize layers and derivatives
@@ -556,49 +554,56 @@ int main(int argc, char *argv[]) {
     Deltas deltas; 
     init_deltas(&deltas, layers, &W1, &W2, &W3, &X_in);
     Transpose transpose;
-    init_transpose(&transpose, layers, batch_size, &Y_in, &W2, &W3, &X_in);
+    init_transpose(&transpose, layers, preferences->batch_size, &Y_in, &W2, &W3, &X_in);
     Layers *layers_eval = init_layers(&X_train, &W1, &W2, &W3);
+    Layers *layers_test = init_layers(&X_test, &W1, &W2, &W3);
     Matrix *eval_yhat = allocate_matrix(10, Y_train.ncols);
+    Matrix *test_yhat = allocate_matrix(10, Y_test.ncols);
     end = clock();
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
     printf("Allocation took %f seconds to execute\n", cpu_time_used);
 
-    start_main = clock();
+    start_operations = clock();
     int start_idx, end_idx;
-    for (int i = 0; i < num_iterations; i++) {
-        if (i == 1000) lr = lr * 0.5; 
+    for (int i = 0; i < preferences->num_iterations; i++) {
         forward_pass(layers, &X_in, &W1, &W2, &W3);
         backward_pass(&X_in, layers, &W1, &W2, &W3, &Y_in, &deltas, &transpose);  
-        update_weights(&deltas, &W1, &W2, &W3, lr);
-        if (i % 100 == 0) {
-            start_inference = clock();
+        update_weights(&deltas, &W1, &W2, &W3, preferences->lr);
+        if (i % preferences->status_interval == 0) {
             forward_pass(layers_eval, &X_train, &W1, &W2, &W3);
-            end_inference = clock();
+            forward_pass(layers_test, &X_test, &W1, &W2, &W3);
             get_yhat(layers_eval->A3, eval_yhat);
-            printf("Iteration: %d | Accuracy: %f\n", i, get_accuracy(eval_yhat, &Y_train));
-            printf("inference time for train dataset: %lf\n", ((double) (end_inference - start_inference)) / CLOCKS_PER_SEC);
+            get_yhat(layers_test->A3, test_yhat);
+            printf("Iteration: %d | Train Accuracy: %f, Test Accuracy: %f\n", i, get_accuracy(eval_yhat, &Y_train), get_accuracy(test_yhat, &Y_test));
         }
 
-        start_idx = ((i + 1) * batch_size) % X_train.ncols;
-        end_idx = ((i + 2) * batch_size) % X_train.ncols;
+        start_idx = ((i + 1) * preferences->batch_size) % X_train.ncols;
+        end_idx = ((i + 2) * preferences->batch_size) % X_train.ncols;
         if (end_idx == 0) {
             end_idx = X_train.ncols;
         }
-        //printf("copying from pattern (%d) to pattern (%d)\n", start_idx, end_idx);
         copy_some_matrix_values(&X_train, &X_in, start_idx, end_idx, true);   
         copy_some_matrix_values(&Y_train, &Y_in, start_idx, end_idx, true);   
     }
-    printf("X_train.ncols = %d\n", X_train.ncols);
-    end_main = clock();
-    main_cpu_time = ((double) (end_main - start_main)) / CLOCKS_PER_SEC;
-    printf("Non-allocation operations of program took %f seconds to execute\n", main_cpu_time);
-    for (int index = 300; index < 317; index ++) {
+
+    end_operations = clock();
+    main_cpu_time = ((double) (end_operations - start_operations)) / CLOCKS_PER_SEC;
+    printf("Non-allocation operations of program (training) took %f seconds to execute\n", main_cpu_time);
+
+    start_inference = clock();
+    forward_pass(layers_eval, &X_train, &W1, &W2, &W3);
+    end_inference = clock();
+    printf("Inference time for entire training set (784 pixels x 41000 examples): %lf seconds\n", ((double) (end_inference - start_inference)) / CLOCKS_PER_SEC);
+    
+    for (int index = preferences->display_start; index < preferences->display_end; index++) {
         inference_one_example(&X_test, &Y_test, &W1, &W2, &W3, index);
     }
 
     // cleanup
+    free_matrix_struct(test_yhat);
     free_matrix_struct(eval_yhat);
     free_layers(layers_eval);
+    free_layers(layers_test);
     free_matrix_arr(X_in);
     free_matrix_arr(Y_in);
     free_layers(layers);
@@ -612,6 +617,7 @@ int main(int argc, char *argv[]) {
     free_matrix_arr(W2);
     free_matrix_arr(W3);
     free_deltas(&deltas);
+    free(preferences);
     printf("All memory frees successful\n");
     return 0;
 }

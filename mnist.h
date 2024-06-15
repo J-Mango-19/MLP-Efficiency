@@ -41,6 +41,16 @@ typedef struct {
     Matrix *XT;
 } Transpose;
 
+typedef struct {
+    float lr;
+    int batch_size;
+    int num_iterations;
+    int display_start;
+    int display_end;
+    int status_interval;
+} Preferences;
+
+
 // dynamic memory allocation
 Matrix *allocate_matrix(int nrows, int ncols);
 Layers *init_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
@@ -91,3 +101,5 @@ void free_matrix_struct(Matrix *arr);
 float random_float();
 void append_bias_factor(Matrix *A);
 void deriv_relu(Matrix *Z, Matrix *derivative);
+Preferences *get_input(int argc, char *argv[]);
+void usage(int code);
