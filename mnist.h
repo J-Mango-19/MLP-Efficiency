@@ -54,8 +54,8 @@ typedef struct {
 // dynamic memory allocation
 Matrix *allocate_matrix(int nrows, int ncols);
 Layers *init_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
-void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Matrix *Y, Matrix *W2, Matrix *W3, Matrix *X);
-void init_deltas(Deltas *deltas, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *X);
+void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Matrix *W2, Matrix *W3, Matrix *X);
+void init_deltas(Deltas *deltas, Layers *layers, Matrix *W2, Matrix *W3, Matrix *X);
 void init_weights(Matrix *W);
 
 
@@ -78,15 +78,15 @@ void multiply_matrices_elementwise(Matrix *A, Matrix *B, Matrix *C, bool omit_la
 void copy_matrix_values(Matrix *original, Matrix *New);
 void copy_some_matrix_values(Matrix *original, Matrix *New, int start_index, int end_index, bool allow_wrap);
 void display_matrix(Matrix *X);
-void divide_matrix_elementwise(Matrix *matrix, int divisor);
-void get_matrix_stats(Matrix *problem);
+void scale_matrix(Matrix *matrix, float factor);
 void subtract_matrices(Matrix *A, Matrix *B, Matrix *C);
 void one_hot(Matrix *Y, Matrix *one_hot_Y);
+void argmax_into_yhat(Matrix *A, Matrix *yhat);
 
 // neural net commands
 void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
 void inference_one_example(Matrix *X_test, Matrix *Y_test, Matrix *W1, Matrix *W2, Matrix *W3, int index);
-void backward_pass(Matrix *X, Layers *layers, Matrix *W1, Matrix *W2, Matrix *W3, Matrix *Y, Deltas *deltas, Transpose *transpose);
+void backward_pass(Matrix *X, Layers *layers, Matrix *W2, Matrix *W3, Matrix *Y, Deltas *deltas, Transpose *transpose);
 void update_weights(Deltas *deltas, Matrix *W1, Matrix *W2, Matrix *W3, float lr);
 float get_accuracy(Matrix *yhat, Matrix *Y);
 

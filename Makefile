@@ -2,23 +2,24 @@ CC= gcc
 CFLAGS= -Wall -g -lm -std=gnu99 -O3
 LD= gcc
 LDFLAGS = -L. -lm 
-TARGETS = mnist clean_obj
+TARGETS = mnist_nn clean_obj
 
 all: $(TARGETS)
 
-
-mnist.o: mnist.c mnist.h
+main.o: mnist_nn.c mnist.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-input.o: input.c mnist.h
+utils.o: utilities.c mnist.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-mnist: mnist.o input.o
+matrix_ops.o: matrix_ops.c mnist.h
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+mnist_nn: main.o utils.o matrix_ops.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
-
 clean:
-	@rm -f *.o mnist
+	@rm -f *.o mnist_nn
 
 clean_obj:
 	@rm -f *.o
