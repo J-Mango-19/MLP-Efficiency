@@ -65,7 +65,6 @@ void transpose_matrix(Matrix *arr, Matrix *transposed);
 void XY_split(Matrix *data, Matrix *X, Matrix *Y); 
 void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data);
 void normalize(Matrix *X_train, Matrix *X_test);
-void append_bias_input(Matrix *X_train, Matrix *X_test);
 
 
 // activation functions
@@ -100,6 +99,10 @@ void free_matrix_struct(Matrix *arr);
 // unclassified
 float random_float();
 void append_bias_factor(Matrix *A);
+void append_bias_input(Matrix *X_train, Matrix *X_test);
 void deriv_relu(Matrix *Z, Matrix *derivative);
 Preferences *get_input(int argc, char *argv[]);
 void usage(int code);
+float **initialize_array(int nrows, int ncols);
+void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, Matrix *Y_test);
+

@@ -169,23 +169,80 @@ void inference_one_example(Matrix *X_test, Matrix *Y_test, Matrix *W1, Matrix *W
     free_transpose(&transpose);
 }
 
+
+float** initialize_array(int nrows, int ncols) {
+    float **arr = malloc(nrows * sizeof(float *));
+    size_t row_size = ncols * sizeof(float);
+    for (int i = 0; i < nrows; i++) {
+        arr[i] = malloc(row_size);
+    }
+    return arr;
+}
+
+
+void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, Matrix *Y_test) {
+    /* 
+      Each row of data matrix (42000 x 785) is a class label concatenated with an image vector
+      Each column of the X_train (784 x 41000) and X_test (784 x 1000) matrices will be an image vector 
+      The corresponding columns of Y_train (1 x 41000) and Y_test (1 x 1000) matrices hold the images' labels 
+    */
+    X_test->nrows = X_train->nrows = data->ncols - 1;
+    X_test->ncols = 1000;
+    X_train->ncols = 41000;
+
+    Y_train->nrows = Y_test->nrows = 1;
+    Y_test->ncols = 1000;
+    Y_train->ncols = 41000;
+
+    // dynamically allocate 2d arrays for each Matrix struct
+    initialize_array(X_test->nrows, X_test->ncols);
+    initialize_array(X_train->nrows, X_train->ncols);
+    initialize_array(Y_train->nrows, Y_train->ncols);
+    initialize_array(Y_test->nrows, Y_test->ncols);
+
+    // assign values from original data matrix into splits
+    for (int j = 0; j < Y_test->ncols; j++) {
+        Y_test->mat[0][j] = data->mat[j][0];
+    }
+
+    for (int j = Y_test->ncols; j < Y_train->ncols; j++) {
+        Y_train->mat[0][j - Y_test->ncols] = data->mat[j][0];
+    }
+
+    for (int i = 0; i < X_test->nrows; i++) {
+        for (int j = 1; j < X_test->ncols; j++) {
+            X_test->mat[i][j] = data->mat[j][i];
+        }
+    }
+
+    for (int i = X_test->nrows; i < X_train->nrows; i++) {
+        for (int j = 1; j < X_train->ncols; j++) {
+            X_train->mat[i - X_test->nrows][j] = data->mat[j][i];
+        }
+    }
+    
+
+    // free the original data matrix
+    free_matrix_arr(*data);
+}
+
 int main(int argc, char *argv[]) {
     srand(time(NULL)); // ensures random weight initialization
     Preferences *preferences = get_input(argc, argv);
     clock_t start, end;
+    start = clock();
 
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values) 
-    start = clock();
     Matrix data = read_csv("MNIST_data.csv");
-    Matrix test_data = { .nrows = 785, .ncols = 1000, .mat = malloc(785 * sizeof(float *)) };
-    Matrix train_data = { .nrows = 785, .ncols = 41000, .mat = malloc(785 * sizeof(float *)) }; // 41999
-    train_test_split(&data, &test_data, &train_data);
-    Matrix X_train, X_test;
-    Matrix Y_train, Y_test;
-    XY_split(&test_data, &X_test, &Y_test);
-    XY_split(&train_data, &X_train, &Y_train);
+    Matrix X_train, X_test, Y_train, Y_test;
+    split_data(&data, &X_train, &Y_train, &X_test, &Y_test);
     normalize(&X_train, &X_test);
     append_bias_input(&X_train, &X_test);
+
+    /*
+    // initialize struct to hold all weights
+    Weights *weights = init_weights(X_train->nrows, 30, 20, 10);
+    */
 
     // initialize weights with an extra term for each node acting as bias 
     Matrix W1 = {.nrows = 30, .ncols = X_train.nrows, .mat = malloc(30 * sizeof(float*))};
@@ -195,7 +252,7 @@ int main(int argc, char *argv[]) {
     init_weights(&W2);
     init_weights(&W3);
 
-    // gets a subset of the data to train on 
+    // gets a batch of the data to begin training on 
     Matrix X_in = { .nrows = 785, .ncols = preferences->batch_size, .mat = malloc(785 * sizeof(float *)) };
     Matrix Y_in = { .nrows = 1, .ncols = preferences->batch_size, .mat = malloc(sizeof(float *)) }; 
     Matrix yhat = { .nrows = 10, .ncols = preferences->batch_size, .mat = malloc(10 * sizeof(float *))};
