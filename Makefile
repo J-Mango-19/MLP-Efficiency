@@ -1,5 +1,5 @@
 CC= gcc
-CFLAGS= -Wall -g -lm -std=gnu99
+CFLAGS= -Wall -g -lm -std=gnu99 -O3
 LD= gcc
 LDFLAGS = -L. -lm 
 TARGETS = mnist_nn clean_obj

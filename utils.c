@@ -70,51 +70,6 @@ Matrix read_csv(const char* filename) {
     return data_matrix;
 }
 
-void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data) {
-    size_t test_rowsize = test_data->ncols * sizeof(float);
-    size_t train_rowsize = train_data->ncols * sizeof(float);
-    for (int i = 0; i < 785; i++) {
-        // allocate and store data for one row of train data
-        train_data->mat[i] = malloc(train_rowsize);
-        for (int j = 1000; j < 42000; j++) {
-            train_data->mat[i][j-1000] = data->mat[j][i];
-        }
-
-        // allocate and store data for one row of test data
-        test_data->mat[i] = malloc(test_rowsize);
-        for (int j = 0; j < 1000; j++) {
-            test_data->mat[i][j] = data->mat[j][i];
-        }
-    }
-    // free the original data matrix
-    free_matrix_arr(*data);
-
-}
-
-void XY_split(Matrix *data, Matrix *X, Matrix *Y) {
-    // copy first row into Y matrix
-    Y->nrows = 1;
-    Y->ncols = data->ncols;
-    Y->mat = malloc(1 * sizeof(float(*)));
-    Y->mat[0] = malloc(Y->ncols * sizeof(float));
-    memcpy(Y->mat[0], data->mat[0], data->ncols*sizeof(float));
-
-
-    // copy the rest of the rows of data into X matrix
-    X->ncols = data->ncols;
-    X->nrows = data->nrows - 1; 
-    X->mat = malloc(X->nrows * sizeof(float(*)));
-    size_t row_size = data->ncols * sizeof(float);
-    int rowsum = 0;
-    for (int i = 1; i < X->nrows + 1; i++) { 
-        rowsum ++;
-        X->mat[i-1] = malloc(row_size);
-        memcpy(X->mat[i-1], data->mat[i], row_size);
-    }
-
-    // free the original data array
-    free_matrix_arr(*data);
-}
 
 void append_bias_input(Matrix *X_train, Matrix *X_test) {
     // define & allocate replacement arrays that will contain the same values and also a bias multpliying 1 for each input pattern
@@ -308,4 +263,60 @@ void init_deltas(Deltas *deltas, Layers *layers, Matrix *W2, Matrix *W3, Matrix*
     deltas->dA1_dZ1 = allocate_matrix(layers->Z1->nrows, layers->Z1->ncols);
     deltas->dW1 = allocate_matrix(deltas->dZ1->nrows, X->nrows); // ie XT.ncols
 }
+
+float** initialize_array(int nrows, int ncols) {
+    float **arr = malloc(nrows * sizeof(float *));
+    size_t row_size = ncols * sizeof(float);
+    for (int i = 0; i < nrows; i++) {
+        arr[i] = malloc(row_size);
+    }
+    return arr;
+}
+
+
+void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, Matrix *Y_test) {
+    /*
+      Each row of data matrix (42000 x 785) is a class label concatenated with an image vector
+      Each column of the X_train (784 x 41000) and X_test (784 x 1000) matrices will be an image vector
+      The corresponding columns of Y_train (1 x 41000) and Y_test (1 x 1000) matrices hold the images' labels
+    */
+    X_test->nrows = X_train->nrows = data->ncols - 1;
+    X_test->ncols = 1000;
+    X_train->ncols = 41000;
+
+    Y_train->nrows = Y_test->nrows = 1;
+    Y_test->ncols = 1000;
+    Y_train->ncols = 41000;
+
+    // dynamically allocate 2d arrays for each Matrix struct
+    X_test->mat = initialize_array(X_test->nrows, X_test->ncols);
+    X_train->mat = initialize_array(X_train->nrows, X_train->ncols);
+    Y_train->mat = initialize_array(Y_train->nrows, Y_train->ncols);
+    Y_test->mat = initialize_array(Y_test->nrows, Y_test->ncols);
+
+    // assign values from original data matrix into splits
+    for (int j = 0; j < Y_test->ncols; j++) {
+        Y_test->mat[0][j] = data->mat[j][0];
+    }
+
+    for (int j = Y_test->ncols; j < Y_train->ncols; j++) {
+        Y_train->mat[0][j - Y_test->ncols] = data->mat[j][0];
+    }
+
+    for (int i = 1; i < X_test->nrows; i++) {
+        for (int j = 0; j < X_test->ncols; j++) {
+            X_test->mat[i - 1][j] = data->mat[j][i];
+        }
+    }
+
+    for (int i = 1; i < X_train->nrows; i++) {
+        for (int j = X_test->ncols; j < X_train->ncols; j++) {
+            X_train->mat[i - 1][j - X_test->ncols] = data->mat[j][i];
+        }
+    }
+
+    // free the original data matrix
+    free_matrix_arr(*data);
+}
+
 
