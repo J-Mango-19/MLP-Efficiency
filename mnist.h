@@ -7,6 +7,13 @@ typedef struct {
     float **mat;
 } Matrix;
 
+// holds all model weights as Matrix structs
+typedef struct {
+    Matrix *W1;
+    Matrix *W2;
+    Matrix *W3;
+} Weights;
+
 // holds the unactivated (Z) and activated (A) layers of the net
 typedef struct {
     Matrix *Z1;
@@ -53,18 +60,19 @@ typedef struct {
 
 // dynamic memory allocation
 Matrix *allocate_matrix(int nrows, int ncols);
-Layers *init_layers(Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
-void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Matrix *W2, Matrix *W3, Matrix *X);
-void init_deltas(Deltas *deltas, Layers *layers, Matrix *W2, Matrix *W3, Matrix *X);
-void init_weights(Matrix *W);
+Layers *init_layers(Matrix *X, Weights *weights);
+void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Weights *weights, Matrix *X);
+void init_deltas(Deltas *deltas, Layers *layers, Weights *weights, Matrix *X);
+void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hidden_2, int num_output);
+
 
 
 // input data processing
 Matrix read_csv(const char *filename);
 void transpose_matrix(Matrix *arr, Matrix *transposed);
-void XY_split(Matrix *data, Matrix *X, Matrix *Y); 
-void train_test_split(Matrix *data, Matrix *test_data, Matrix *train_data);
 void normalize(Matrix *X_train, Matrix *X_test);
+float random_float();
+void randomize_weights(Matrix *W);
 
 
 // activation functions
@@ -83,10 +91,10 @@ void one_hot(Matrix *Y, Matrix *one_hot_Y);
 void argmax_into_yhat(Matrix *A, Matrix *yhat);
 
 // neural net commands
-void forward_pass(Layers *layers, Matrix *X, Matrix *W1, Matrix *W2, Matrix *W3);
-void inference_one_example(Matrix *X_test, Matrix *Y_test, Matrix *W1, Matrix *W2, Matrix *W3, int index);
-void backward_pass(Matrix *X, Layers *layers, Matrix *W2, Matrix *W3, Matrix *Y, Deltas *deltas, Transpose *transpose);
-void update_weights(Deltas *deltas, Matrix *W1, Matrix *W2, Matrix *W3, float lr);
+void forward_pass(Layers *layers, Matrix *X, Weights *weights);
+void inference_one_example(Matrix *X_test, Matrix *Y_test, Weights *weights, int index);
+void backward_pass(Matrix *X, Layers *layers, Weights *weights, Matrix *Y, Deltas *deltas, Transpose *transpose);
+void update_weights(Deltas *deltas, Weights *weights, float lr);
 float get_accuracy(Matrix *yhat, Matrix *Y);
 
 // dynamic memory freeing functions 
@@ -97,7 +105,6 @@ void free_matrix_arr(Matrix arr);
 void free_matrix_struct(Matrix *arr);
 
 // unclassified
-float random_float();
 void append_bias_factor(Matrix *A);
 void append_bias_input(Matrix *X_train, Matrix *X_test);
 void deriv_relu(Matrix *Z, Matrix *derivative);
@@ -105,4 +112,3 @@ Preferences *get_input(int argc, char *argv[]);
 void usage(int code);
 float **initialize_array(int nrows, int ncols);
 void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, Matrix *Y_test);
-
