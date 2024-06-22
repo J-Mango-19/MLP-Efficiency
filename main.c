@@ -169,6 +169,7 @@ void inference_one_example(Matrix *X_test, Matrix *Y_test, Weights *weights, int
 }
 
 void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hidden_2, int num_output) {
+    srand(time(NULL)); // ensures random weight values
 
     // allocate and initiliaze weights to random values
     /*
@@ -180,7 +181,6 @@ void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hid
     weights->W2 = allocate_matrix(num_hidden_2, num_hidden_1 + 1);
     weights->W3 = allocate_matrix(num_output, num_hidden_2 + 1);
 
-    srand(time(NULL)); // ensures random weight values
     randomize_weights(weights->W1);
     randomize_weights(weights->W2);
     randomize_weights(weights->W3);
