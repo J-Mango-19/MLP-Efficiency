@@ -14,7 +14,7 @@ typedef struct {
     Matrix *W3;
 } Weights;
 
-// holds the unactivated (Z) and activated (A) layers of the net
+// holds the unactivated (Z) and activated (A) nodes of the net
 typedef struct {
     Matrix *Z1;
     Matrix *Z2;
@@ -22,7 +22,7 @@ typedef struct {
     Matrix *A1;
     Matrix *A2;
     Matrix *A3;
-} Layers;
+} Nodes;
 
 // holds the gradient matrices
 typedef struct {
@@ -60,9 +60,9 @@ typedef struct {
 
 // dynamic memory allocation
 Matrix *allocate_matrix(int nrows, int ncols);
-Layers *init_layers(Matrix *X, Weights *weights);
-void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Weights *weights, Matrix *X);
-void init_deltas(Deltas *deltas, Layers *layers, Weights *weights, Matrix *X);
+Nodes *init_nodes(Matrix *X, Weights *weights);
+void init_transpose(Transpose *transpose, Nodes *nodes, int batch_size, Weights *weights, Matrix *X);
+void init_deltas(Deltas *deltas, Nodes *nodes, Weights *weights, Matrix *X);
 void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hidden_2, int num_output);
 
 
@@ -91,14 +91,14 @@ void one_hot(Matrix *Y, Matrix *one_hot_Y);
 void argmax_into_yhat(Matrix *A, Matrix *yhat);
 
 // neural net commands
-void forward_pass(Layers *layers, Matrix *X, Weights *weights);
+void forward_pass(Nodes *nodes, Matrix *X, Weights *weights);
 void inference_one_example(Matrix *X_test, Matrix *Y_test, Weights *weights, int index);
-void backward_pass(Matrix *X, Layers *layers, Weights *weights, Matrix *Y, Deltas *deltas, Transpose *transpose);
+void backward_pass(Matrix *X, Nodes *nodes, Weights *weights, Matrix *Y, Deltas *deltas, Transpose *transpose);
 void update_weights(Deltas *deltas, Weights *weights, float lr);
 float get_accuracy(Matrix *yhat, Matrix *Y);
 
 // dynamic memory freeing functions 
-void free_layers(Layers *layers);
+void free_nodes(Nodes *nodes);
 void free_transpose(Transpose *transpose);
 void free_deltas(Deltas *deltas);
 void free_matrix_arr(Matrix arr);

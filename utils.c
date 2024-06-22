@@ -175,14 +175,14 @@ Preferences *get_input(int argc, char *argv[]) {
     }
     return preferences;
 }
-void free_layers(Layers *layers) {
-    free_matrix_struct(layers->Z1);
-    free_matrix_struct(layers->Z2);
-    free_matrix_struct(layers->Z3);
-    free_matrix_struct(layers->A1);
-    free_matrix_struct(layers->A2);
-    free_matrix_struct(layers->A3);
-    free(layers);
+void free_nodes(Nodes *nodes) {
+    free_matrix_struct(nodes->Z1);
+    free_matrix_struct(nodes->Z2);
+    free_matrix_struct(nodes->Z3);
+    free_matrix_struct(nodes->A1);
+    free_matrix_struct(nodes->A2);
+    free_matrix_struct(nodes->A3);
+    free(nodes);
 }
 
 void free_transpose(Transpose *transpose) {
@@ -207,33 +207,28 @@ void free_deltas(Deltas *deltas) {
     free_matrix_struct(deltas->dW1);
 }    
 
-void init_transpose(Transpose *transpose, Layers *layers, int batch_size, Weights *weights, Matrix *X) {
+void init_transpose(Transpose *transpose, Nodes *nodes, int batch_size, Weights *weights, Matrix *X) {
     transpose->one_hot_Y = allocate_matrix(10, batch_size);
-    transpose->A2T = allocate_matrix(layers->A2->ncols, layers->A2->nrows);
+    transpose->A2T = allocate_matrix(nodes->A2->ncols, nodes->A2->nrows);
     transpose->W3T = allocate_matrix(weights->W3->ncols, weights->W3->nrows);
-    transpose->A1T = allocate_matrix(layers->A1->ncols, layers->A1->nrows);
+    transpose->A1T = allocate_matrix(nodes->A1->ncols, nodes->A1->nrows);
     transpose->W2T = allocate_matrix(weights->W2->ncols, weights->W2->nrows);
     transpose->XT = allocate_matrix(X->ncols, X->nrows);
 }
 
-Layers *init_layers(Matrix *X, Weights *weights) {
-    // layers A1 & A2 have an extra row added to them (which will be set to 1's later) as a factor to the bias terms in the next layer's weights
-    Matrix *Z1 = allocate_matrix(weights->W1->nrows, X->ncols);
-    Matrix *A1 = allocate_matrix(weights->W1->nrows + 1, X->ncols);
-    Matrix *Z2 = allocate_matrix(weights->W2->nrows, A1->ncols);
-    Matrix *A2 = allocate_matrix(weights->W2->nrows + 1, A1->ncols);
-    Matrix *Z3 = allocate_matrix(weights->W3->nrows, A2->ncols);
-    Matrix *A3 = allocate_matrix(weights->W3->nrows, A2->ncols);
+Nodes *init_nodes(Matrix *X, Weights *weights) {
+    Nodes *nodes = malloc(sizeof(Nodes));
 
-    Layers *initialized_layers = malloc(sizeof(Layers));
-    initialized_layers->Z1 = Z1;
-    initialized_layers->A1 = A1;
-    initialized_layers->Z2 = Z2;
-    initialized_layers->A2 = A2;
-    initialized_layers->Z3 = Z3;
-    initialized_layers->A3 = A3;
+    // nodes in layers A1 & A2 have an extra row added to them (which will be set to 1's later) as a factor to the bias terms in the next layer's weights
+    int ncols = X->ncols;
+    nodes->Z1 = allocate_matrix(weights->W1->nrows, ncols);
+    nodes->A1 = allocate_matrix(weights->W1->nrows + 1, ncols);
+    nodes->Z2 = allocate_matrix(weights->W2->nrows, ncols);
+    nodes->A2 = allocate_matrix(weights->W2->nrows + 1, ncols);
+    nodes->Z3 = allocate_matrix(weights->W3->nrows, ncols);
+    nodes->A3 = allocate_matrix(weights->W3->nrows, ncols);
 
-    return initialized_layers;
+    return nodes;
 }
 
 void free_matrix_arr(Matrix arr) {
@@ -251,16 +246,16 @@ void free_matrix_struct(Matrix *arr) {
     free(arr);
 }
 
-void init_deltas(Deltas *deltas, Layers *layers, Weights *weights, Matrix* X) {
-    deltas->dZ3 = allocate_matrix(layers->A3->nrows, layers->A3->ncols);
-    deltas->dW3 = allocate_matrix(deltas->dZ3->nrows, layers->A2->nrows); // ie A2T->ncols
+void init_deltas(Deltas *deltas, Nodes *nodes, Weights *weights, Matrix* X) {
+    deltas->dZ3 = allocate_matrix(nodes->A3->nrows, nodes->A3->ncols);
+    deltas->dW3 = allocate_matrix(deltas->dZ3->nrows, nodes->A2->nrows); // ie A2T->ncols
     deltas->dA2 = allocate_matrix(weights->W3->ncols, deltas->dZ3->ncols);
     deltas->dZ2 = allocate_matrix(deltas->dA2->nrows - 1, deltas->dA2->ncols);
-    deltas->dA2_dZ2 = allocate_matrix(layers->Z2->nrows, layers->Z2->ncols);
-    deltas->dW2 = allocate_matrix(deltas->dZ2->nrows, layers->A1->nrows); // ie A1T->ncols
+    deltas->dA2_dZ2 = allocate_matrix(nodes->Z2->nrows, nodes->Z2->ncols);
+    deltas->dW2 = allocate_matrix(deltas->dZ2->nrows, nodes->A1->nrows); // ie A1T->ncols
     deltas->dA1 = allocate_matrix(weights->W2->ncols, deltas->dZ2->ncols);
     deltas->dZ1 = allocate_matrix(deltas->dA1->nrows - 1, deltas->dA1->ncols);
-    deltas->dA1_dZ1 = allocate_matrix(layers->Z1->nrows, layers->Z1->ncols);
+    deltas->dA1_dZ1 = allocate_matrix(nodes->Z1->nrows, nodes->Z1->ncols);
     deltas->dW1 = allocate_matrix(deltas->dZ1->nrows, X->nrows); // ie XT.ncols
 }
 
