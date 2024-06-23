@@ -275,7 +275,7 @@ void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, 
       Each column of the X_train (784 x 41000) and X_test (784 x 1000) matrices will be an image vector
       The corresponding columns of Y_train (1 x 41000) and Y_test (1 x 1000) matrices hold the images' labels
     */
-    X_test->nrows = X_train->nrows = data->ncols - 1;
+    X_test->nrows = X_train->nrows = data->ncols; // - 1
     X_test->ncols = 1000;
     X_train->ncols = 41000;
 
@@ -294,21 +294,28 @@ void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, 
         Y_test->mat[0][j] = data->mat[j][0];
     }
 
-    for (int j = Y_test->ncols; j < Y_train->ncols; j++) {
+    for (int j = Y_test->ncols; j < Y_test->ncols + Y_train->ncols; j++) {
         Y_train->mat[0][j - Y_test->ncols] = data->mat[j][0];
     }
 
-    for (int i = 1; i < X_test->nrows; i++) {
+    for (int i = 1; i < X_test->nrows -1; i++) {
         for (int j = 0; j < X_test->ncols; j++) {
             X_test->mat[i - 1][j] = data->mat[j][i];
         }
     }
 
-    for (int i = 1; i < X_train->nrows; i++) {
-        for (int j = X_test->ncols; j < X_train->ncols; j++) {
+    for (int i = 1; i < X_train->nrows - 1; i++) {
+        for (int j = X_test->ncols; j < X_test->ncols + X_train->ncols; j++) {
             X_train->mat[i - 1][j - X_test->ncols] = data->mat[j][i];
         }
     }
+
+    /*
+    // DEBUGGING
+    for (int i = 0; i < X_train->nrows; i++) {
+        printf("%d ", (int) X_train->mat[i][0]);
+    }
+    */
 
     // free the original data matrix
     free_matrix_arr(*data);
