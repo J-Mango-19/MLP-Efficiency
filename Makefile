@@ -9,13 +9,16 @@ all: $(TARGETS)
 main.o: main.c mnist.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
+net.o: neural_network.c mnist.h
+	$(CC) $(CFLAGS) -o $@ -c $<
+
 utils.o: utils.c mnist.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 matrix_ops.o: matrix_ops.c mnist.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-mnist_nn: main.o utils.o matrix_ops.o
+mnist_nn: main.o net.o utils.o matrix_ops.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
 clean:

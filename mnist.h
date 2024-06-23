@@ -46,7 +46,7 @@ typedef struct {
     Matrix *A1T;
     Matrix *W2T;
     Matrix *XT;
-} Transpose;
+} Misc;
 
 typedef struct {
     float lr;
@@ -55,13 +55,15 @@ typedef struct {
     int display_start;
     int display_end;
     int status_interval;
+    int num_hidden_1;
+    int num_hidden_2;
 } Preferences;
 
 
 // dynamic memory allocation
 Matrix *allocate_matrix(int nrows, int ncols);
 Nodes *init_nodes(Matrix *X, Weights *weights);
-void init_transpose(Transpose *transpose, Nodes *nodes, int batch_size, Weights *weights, Matrix *X);
+void init_misc(Misc *misc, Nodes *nodes, int batch_size, Weights *weights, Matrix *X);
 void init_deltas(Deltas *deltas, Nodes *nodes, Weights *weights, Matrix *X);
 void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hidden_2, int num_output);
 
@@ -93,15 +95,15 @@ void argmax_into_yhat(Matrix *A, Matrix *yhat);
 // neural net commands
 void forward_pass(Nodes *nodes, Matrix *X, Weights *weights);
 void inference_one_example(Matrix *X_test, Matrix *Y_test, Weights *weights, int index);
-void backward_pass(Matrix *X, Nodes *nodes, Weights *weights, Matrix *Y, Deltas *deltas, Transpose *transpose);
+void backward_pass(Matrix *X, Nodes *nodes, Weights *weights, Matrix *Y, Deltas *deltas, Misc *misc);
 void update_weights(Deltas *deltas, Weights *weights, float lr);
 float get_accuracy(Matrix *yhat, Matrix *Y);
 
 // dynamic memory freeing functions 
 void free_nodes(Nodes *nodes);
-void free_transpose(Transpose *transpose);
+void free_misc(Misc *misc);
 void free_deltas(Deltas *deltas);
-void free_matrix_arr(Matrix arr);
+void free_matrix_arr(Matrix *arr);
 void free_matrix_struct(Matrix *arr);
 
 // unclassified
@@ -112,3 +114,9 @@ Preferences *get_input(int argc, char *argv[]);
 void usage(int code);
 float **initialize_array(int nrows, int ncols);
 void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, Matrix *Y_test);
+void print_accuracy(int i, Nodes *nodes_train, Nodes *nodes_test, Matrix *X_train, Matrix *X_test, Matrix *train_yhat, Matrix *test_yhat, Matrix *Y_train, Matrix *Y_test, Weights *weights);
+void get_next_batch(int i, int batch_size, Matrix *X_train, Matrix *Y_train, Matrix *X_batch, Matrix *Y_batch); 
+void free_matrix_structs(Matrix *test_yhat, Matrix *train_yhat, Matrix *X_batch, Matrix *Y_batch, Matrix *W1, Matrix *W2, Matrix *W3);
+void free_matrix_arrays(Matrix *X_test, Matrix *X_train, Matrix *Y_test, Matrix *Y_train);
+void free_all_nodes(Nodes *nodes_train, Nodes *nodes_test, Nodes *nodes_batch);
+

@@ -70,45 +70,6 @@ Matrix read_csv(const char* filename) {
     return data_matrix;
 }
 
-
-void append_bias_input(Matrix *X_train, Matrix *X_test) {
-    // define & allocate replacement arrays that will contain the same values and also a bias multpliying 1 for each input pattern
-    float **new_arr_train = malloc((X_train->nrows + 1) * sizeof(float *));
-    float **new_arr_test = malloc((X_test->nrows + 1) * sizeof(float *));
-    for (int i = 0; i < X_train->nrows; i++) {
-
-        // allocate & reassign values for X_train
-        new_arr_train[i] = malloc(X_train->ncols * sizeof(float));
-        for (int j = 0; j < X_train->ncols; j++) {
-            new_arr_train[i][j] = X_train->mat[i][j];
-        }
-
-        //allocate & reassign values for X_test
-        new_arr_test[i] = malloc(X_test->ncols * sizeof(float));
-        for (int j = 0; j < X_test->ncols; j++) {
-            new_arr_test[i][j] = X_test->mat[i][j];
-        }
-    }
-
-    // allocate & assign a 1 for the bias term of each input pattern
-    new_arr_train[X_train->nrows] = malloc(X_train->ncols * sizeof(float));
-    new_arr_test[X_test->nrows] = malloc(X_test->ncols * sizeof(float));
-    for (int j = 0; j < X_train->ncols; j++) {
-        new_arr_train[X_train->nrows][j] = 1;
-    }
-    for (int j = 0; j < X_test->ncols; j++) {
-        new_arr_test[X_test->nrows][j] = 1;
-    }
-
-    // free the old matrices & replace with new ones
-    free_matrix_arr(*X_train);
-    free_matrix_arr(*X_test);
-    X_train->nrows += 1;
-    X_test->nrows += 1;
-    X_train->mat = new_arr_train;
-    X_test->mat = new_arr_test;
-}
-
 void usage(int code) {
     printf("usage: \n");
     printf("./mnist -<flag1> -<flag2>\n");
@@ -121,6 +82,8 @@ void usage(int code) {
     printf("ensure 0 < num1 < num2 < 1000 as there are 1000 test digits\n");
     printf("    -nodisplay turns automatic display examples off\n");
     printf("    -status_interval sets the interval that training accuracy will be displayed\n");
+    printf("    -num_hidden_1 sets the number of nodes in the first hidden layer (default 30)\n");
+    printf("    -num_hidden_2 sets the number of nodes in the second hidden layer (default 20)\n");
     printf("Example usage: ./mnist -lr 0.05 -batch_size 20 -status_interval 200 -display 200 220\n");
     exit(code);
 }
@@ -134,6 +97,8 @@ Preferences *get_input(int argc, char *argv[]) {
     preferences->display_start = 100;
     preferences->display_end = 105;
     preferences->status_interval = 100;
+    preferences->num_hidden_1 = 30;
+    preferences->num_hidden_2 = 20;
 
     char arg[256];
     for (int i = 1; i < argc; i++) {
@@ -167,6 +132,14 @@ Preferences *get_input(int argc, char *argv[]) {
             i++;
             preferences->status_interval = atoi(argv[i]);
         }
+        else if (strcmp("-num_hidden_1", arg) == 0) {
+            i++;
+            preferences->num_hidden_1 = atoi(argv[i]);
+        }
+        else if (strcmp("-num_hidden_2", arg) == 0) {
+            i++;
+            preferences->num_hidden_2 = atoi(argv[i]);
+        }
         else usage(1);
     }
 
@@ -185,13 +158,13 @@ void free_nodes(Nodes *nodes) {
     free(nodes);
 }
 
-void free_transpose(Transpose *transpose) {
-    free_matrix_struct(transpose->one_hot_Y);
-    free_matrix_struct(transpose->A2T);
-    free_matrix_struct(transpose->W3T);
-    free_matrix_struct(transpose->A1T);
-    free_matrix_struct(transpose->W2T);
-    free_matrix_struct(transpose->XT);
+void free_misc(Misc *misc) {
+    free_matrix_struct(misc->one_hot_Y);
+    free_matrix_struct(misc->A2T);
+    free_matrix_struct(misc->W3T);
+    free_matrix_struct(misc->A1T);
+    free_matrix_struct(misc->W2T);
+    free_matrix_struct(misc->XT);
 }
 
 void free_deltas(Deltas *deltas) {
@@ -207,13 +180,13 @@ void free_deltas(Deltas *deltas) {
     free_matrix_struct(deltas->dW1);
 }    
 
-void init_transpose(Transpose *transpose, Nodes *nodes, int batch_size, Weights *weights, Matrix *X) {
-    transpose->one_hot_Y = allocate_matrix(10, batch_size);
-    transpose->A2T = allocate_matrix(nodes->A2->ncols, nodes->A2->nrows);
-    transpose->W3T = allocate_matrix(weights->W3->ncols, weights->W3->nrows);
-    transpose->A1T = allocate_matrix(nodes->A1->ncols, nodes->A1->nrows);
-    transpose->W2T = allocate_matrix(weights->W2->ncols, weights->W2->nrows);
-    transpose->XT = allocate_matrix(X->ncols, X->nrows);
+void init_misc(Misc *misc, Nodes *nodes, int batch_size, Weights *weights, Matrix *X) {
+    misc->one_hot_Y = allocate_matrix(10, batch_size);
+    misc->A2T = allocate_matrix(nodes->A2->ncols, nodes->A2->nrows);
+    misc->W3T = allocate_matrix(weights->W3->ncols, weights->W3->nrows);
+    misc->A1T = allocate_matrix(nodes->A1->ncols, nodes->A1->nrows);
+    misc->W2T = allocate_matrix(weights->W2->ncols, weights->W2->nrows);
+    misc->XT = allocate_matrix(X->ncols, X->nrows);
 }
 
 Nodes *init_nodes(Matrix *X, Weights *weights) {
@@ -231,11 +204,11 @@ Nodes *init_nodes(Matrix *X, Weights *weights) {
     return nodes;
 }
 
-void free_matrix_arr(Matrix arr) {
-    for (int i = 0; i < arr.nrows; i++) {
-        free(arr.mat[i]);
+void free_matrix_arr(Matrix *arr) {
+    for (int i = 0; i < arr->nrows; i++) {
+        free(arr->mat[i]);
     }
-    free(arr.mat);
+    free(arr->mat);
 }
 
 void free_matrix_struct(Matrix *arr) {
@@ -310,15 +283,42 @@ void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, 
         }
     }
 
-    /*
-    // DEBUGGING
-    for (int i = 0; i < X_train->nrows; i++) {
-        printf("%d ", (int) X_train->mat[i][0]);
-    }
-    */
-
     // free the original data matrix
-    free_matrix_arr(*data);
+    free_matrix_arr(data);
+}
+
+void free_matrix_structs(Matrix *test_yhat, Matrix *train_yhat, Matrix *X_batch, Matrix *Y_batch, Matrix *W1, Matrix *W2, Matrix *W3) {
+    free_matrix_struct(test_yhat);
+    free_matrix_struct(train_yhat);
+    free_matrix_struct(X_batch);
+    free_matrix_struct(Y_batch);
+    free_matrix_struct(W1);
+    free_matrix_struct(W2);
+    free_matrix_struct(W3);
+}
+
+void free_matrix_arrays(Matrix *X_test, Matrix *X_train, Matrix *Y_test, Matrix *Y_train) {
+    free_matrix_arr(X_test);
+    free_matrix_arr(X_train);
+    free_matrix_arr(Y_test);
+    free_matrix_arr(Y_train);
+}
+
+void free_all_nodes(Nodes *nodes_train, Nodes *nodes_test, Nodes *nodes_batch) {
+    free_nodes(nodes_train);
+    free_nodes(nodes_test);
+    free_nodes(nodes_batch);
+}
+
+void get_next_batch(int i, int batch_size, Matrix *X_train, Matrix *Y_train, Matrix *X_batch, Matrix *Y_batch) {
+    // calculate next batch index
+    int start_idx = ((i + 1) * batch_size) % X_train->ncols;
+    int end_idx = ((i + 2) * batch_size) % X_train->ncols;
+    if (end_idx == 0) end_idx = X_train->ncols;
+
+    // copy the calculated indices into the next training batch
+    copy_some_matrix_values(X_train, X_batch, start_idx, end_idx, true);
+    copy_some_matrix_values(Y_train, Y_batch, start_idx, end_idx, true);
 }
 
 
