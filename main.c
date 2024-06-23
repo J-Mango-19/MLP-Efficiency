@@ -194,10 +194,10 @@ int main(int argc, char *argv[]) {
 
     // read in & prepare data (transpose, train/test split, x/y split, normalize x values, append bias factor)
     Matrix data = read_csv("MNIST_data.csv");
-    Matrix X_train, X_test, Y_train, Y_test;
 
     /* 
      * new initialization of train and test
+    Matrix X_train, X_test, Y_train, Y_test;
     split_data(&data, &X_train, &Y_train, &X_test, &Y_test);
     normalize(&X_train, &X_test);
     //append_bias_input(&X_train, &X_test);
@@ -219,8 +219,16 @@ int main(int argc, char *argv[]) {
 
     
     // old initialization of train and test
-
-
+    Matrix test_data = { .nrows = 785, .ncols = 1000, .mat = malloc(785 * sizeof(float *)) };
+    Matrix train_data = { .nrows = 785, .ncols = 41000, .mat = malloc(785 * sizeof(float *)) }; // 41999
+    train_test_split(&data, &test_data, &train_data);
+    Matrix X_train, X_test;
+    Matrix Y_train, Y_test;
+    XY_split(&test_data, &X_test, &Y_test);
+    XY_split(&train_data, &X_train, &Y_train);
+    normalize(&X_train, &X_test);
+    append_bias_input(&X_train, &X_test);
+    // end old init of train and test
 
 
     // initialize weights struct to hold each layer's weights
