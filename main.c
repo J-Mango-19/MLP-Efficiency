@@ -1,12 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-#include <math.h>
 #include <time.h>
 #include "mnist.h"
 
 int main(int argc, char *argv[]) {
-    clock_t start, end;
+    clock_t start, end; // allocation, training, and inference will be timed in this program
     start = clock();
 
     // read in & prepare data (misc, train/test split, x/y split, normalize x values, append bias factor)
@@ -14,15 +12,16 @@ int main(int argc, char *argv[]) {
     Matrix data = read_csv("MNIST_data.csv");
     Matrix X_train, X_test, Y_train, Y_test;
     split_data(&data, &X_train, &Y_train, &X_test, &Y_test);
-    normalize(&X_train, &X_test);
+    scale_matrix(&X_train, (float) 1 / 255);
+    scale_matrix(&X_test, (float) 1 / 255);
     append_bias_factor(&X_train);
     append_bias_factor(&X_test);
 
-    // initialize the weights struct to hold each layer's weights
+    // initialize the weights struct to randomize and hold each layer's weights
     Weights weights;
     init_weights(&weights, X_train.nrows, preferences->num_hidden_1, preferences->num_hidden_2, 10);
 
-    // gets a batch of the data to begin training on 
+    // get a batch of the data to begin training on 
     Matrix *X_batch = allocate_matrix(X_train.nrows, preferences->batch_size);
     Matrix *Y_batch = allocate_matrix(1, preferences->batch_size);
     copy_some_matrix_values(&X_train, X_batch, 0, preferences->batch_size, false);
@@ -67,10 +66,8 @@ int main(int argc, char *argv[]) {
     end = clock();
     printf("Inference time for entire training set (784 pixels x 41000 examples): %lf seconds\n", ((double) (end - start)) / CLOCKS_PER_SEC);
     
-    // displaying some examples
-    for (int index = preferences->display_start; index < preferences->display_end; index++) {
-        inference_one_example(&X_test, &Y_test, &weights, index);
-    }
+    // Optionally display some examples to command line
+    display_examples(preferences->display_start, preferences->display_end, &X_test, &Y_test, &weights);
 
     // cleanup
     free_matrix_structs(test_yhat, train_yhat, X_batch, Y_batch, weights.W1, weights.W2, weights.W3);

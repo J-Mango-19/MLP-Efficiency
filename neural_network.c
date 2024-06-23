@@ -1,30 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "mnist.h"
 #include <math.h>
 #include <time.h>
-#include "mnist.h"
-
-float random_float() {
-    return ((float)rand() / (float)RAND_MAX);
-}
-
-void randomize_weights(Matrix *W) {
-    // Initialize every value of each matrix according to a uniform distribution on (-0.5, 0.5)
-    for (int i = 0; i < W->nrows; i++) {
-        for (int j = 0; j < W->ncols; j++) {
-            W->mat[i][j] = random_float() - 0.5;
-        }
-    }
-}
-
-void relu(Matrix *Z) {
-    for (int i = 0; i < Z->nrows; i++) {
-        for (int j = 0; j < Z->ncols; j++) {
-            if (Z->mat[i][j] < 0) Z->mat[i][j] = 0;
-        }
-    }
-}
 
 void softmax(Matrix *Z) {
     // define a matrix of exponentials of the Z matrix
@@ -48,29 +27,30 @@ void softmax(Matrix *Z) {
    }
 }
 
-void append_bias_factor(Matrix *A) {
-    for (int j = 0; j < A->ncols; j++) {
-        A->mat[A->nrows - 1][j] = 1; 
+void relu(Matrix *Z) {
+    for (int i = 0; i < Z->nrows; i++) {
+        for (int j = 0; j < Z->ncols; j++) {
+            if (Z->mat[i][j] < 0) Z->mat[i][j] = 0;
+        }
     }
 }
 
 void forward_pass(Nodes *nodes, Matrix *X, Weights *weights) { 
-    
     // layer 1
     multiply_matrices(weights->W1, X, nodes->Z1);
-    copy_matrix_values(nodes->Z1, nodes->A1); 
+    copy_all_matrix_values(nodes->Z1, nodes->A1); 
     append_bias_factor(nodes->A1);
     relu(nodes->A1);
 
     // layer 2
     multiply_matrices(weights->W2, nodes->A1, nodes->Z2);
-    copy_matrix_values(nodes->Z2, nodes->A2);
+    copy_all_matrix_values(nodes->Z2, nodes->A2);
     append_bias_factor(nodes->A2);
     relu(nodes->A2);
 
     // layer 3 (output)
     multiply_matrices(weights->W3, nodes->A2, nodes->Z3);
-    copy_matrix_values(nodes->Z3, nodes->A3);
+    copy_all_matrix_values(nodes->Z3, nodes->A3);
     softmax(nodes->A3);
 }
 
@@ -134,63 +114,5 @@ void update_weights(Deltas *deltas, Weights *weights, float lr) {
             deltas->dW1->mat[i][j] = 0;
         }
     }
-}
-
-float get_accuracy(Matrix *yhat, Matrix *Y) {
-    float correct_sum = 0;
-    for (int i = 0; i < Y->ncols; i++) {
-        if (yhat->mat[0][i] == Y->mat[0][i]) {
-            correct_sum += 1;
-        }
-    }
-    return correct_sum / Y->ncols;
-}
-
-void inference_one_example(Matrix *X_test, Matrix *Y_test, Weights *weights, int index) {
-    Matrix *X_example = allocate_matrix(X_test->nrows, 1);
-    copy_some_matrix_values(X_test, X_example, index, index + 1, false);
-
-    Matrix *yhat = allocate_matrix(1, 1);
-    Nodes *nodes = init_nodes(X_example, weights);
-    Deltas deltas; 
-    init_deltas(&deltas, nodes, weights, X_example);
-    Misc misc;
-    init_misc(&misc, nodes, 1, weights, X_example);
-    forward_pass(nodes, X_example, weights);
-    argmax_into_yhat(nodes->A3, yhat);
-    display_matrix(X_example);
-    printf("Actual: %d, Predicted: %d at index %d\n", (int)Y_test->mat[0][index], (int) yhat->mat[0][0], index);
-    
-    free_matrix_struct(X_example);
-    free_matrix_struct(yhat);
-    free_deltas(&deltas);
-    free_nodes(nodes);
-    free_misc(&misc);
-}
-
-void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hidden_2, int num_output) {
-    srand(time(NULL)); // ensures random weight values
-
-    // allocate and initiliaze weights to random values
-    /*
-    Weights.W1 = {.nrows = 30, .ncols = X_train.nrows, .mat = malloc(30 * sizeof(float*))};
-    Weights.W2 = {.nrows = 20, .ncols = 30 + 1, .mat = malloc(20 * sizeof(float*))};
-    Weights.W3 = {.nrows = 10, .ncols = 20 + 1, .mat = malloc(10 * sizeof(float*))};
-    */
-    weights->W1 = allocate_matrix(num_hidden_1, num_input);
-    weights->W2 = allocate_matrix(num_hidden_2, num_hidden_1 + 1);
-    weights->W3 = allocate_matrix(num_output, num_hidden_2 + 1);
-
-    randomize_weights(weights->W1);
-    randomize_weights(weights->W2);
-    randomize_weights(weights->W3);
-}
-
-void print_accuracy(int i, Nodes *nodes_train, Nodes *nodes_test, Matrix *X_train, Matrix *X_test, Matrix *train_yhat, Matrix *test_yhat, Matrix *Y_train, Matrix *Y_test, Weights *weights) {
-    forward_pass(nodes_train, X_train, weights);
-    forward_pass(nodes_test, X_test, weights);
-    argmax_into_yhat(nodes_train->A3, train_yhat);
-    argmax_into_yhat(nodes_test->A3, test_yhat);
-    printf("Iteration: %d | Train Accuracy: %f, Test Accuracy: %f\n", i, get_accuracy(train_yhat, Y_train), get_accuracy(test_yhat, Y_test));
 }
 

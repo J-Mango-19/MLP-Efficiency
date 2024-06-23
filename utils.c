@@ -14,25 +14,10 @@ Matrix read_csv(const char* filename) {
     }
 
     // Allocate memory for the 2D array
-    float **data = (float **)malloc(data_matrix.nrows* sizeof(float *));
-    if (!data) {
-        fprintf(stderr, "Memory allocation failed\n");
-        fclose(file);
-        return data_matrix;
-    }
+    float **data = (float **)malloc(data_matrix.nrows * sizeof(float *));
 
     for (int i = 0; i < data_matrix.nrows; i++) {
         data[i] = (float *)malloc(data_matrix.ncols * sizeof(float));
-        if (!data[i]) {
-            fprintf(stderr, "Memory allocation failed\n");
-            // Free previously allocated memory before returning
-            for (int j = 0; j < i; j++) {
-                free(data[j]);
-            }
-            free(data);
-            fclose(file);
-            return data_matrix;
-        }
     }
 
     char line[16000]; // Large enough buffer to hold one line of the CSV file
@@ -321,4 +306,80 @@ void get_next_batch(int i, int batch_size, Matrix *X_train, Matrix *Y_train, Mat
     copy_some_matrix_values(Y_train, Y_batch, start_idx, end_idx, true);
 }
 
+float random_float() {
+    return ((float)rand() / (float)RAND_MAX);
+}
 
+void randomize_weights(Matrix *W) {
+    // Initialize every value of each matrix according to a uniform distribution on (-0.5, 0.5)
+    for (int i = 0; i < W->nrows; i++) {
+        for (int j = 0; j < W->ncols; j++) {
+            W->mat[i][j] = random_float() - 0.5;
+        }
+    }
+}
+
+void append_bias_factor(Matrix *A) {
+    for (int j = 0; j < A->ncols; j++) {
+        A->mat[A->nrows - 1][j] = 1;
+    }
+}
+
+void print_accuracy(int i, Nodes *nodes_train, Nodes *nodes_test, Matrix *X_train, Matrix *X_test, Matrix *train_yhat, Matrix *test_yhat, Matrix *Y_train, Matrix *Y_test, Weights *weights) {
+    forward_pass(nodes_train, X_train, weights);
+    forward_pass(nodes_test, X_test, weights);
+    argmax_into_yhat(nodes_train->A3, train_yhat);
+    argmax_into_yhat(nodes_test->A3, test_yhat);
+    printf("Iteration: %d | Train Accuracy: %f, Test Accuracy: %f\n", i, get_accuracy(train_yhat, Y_train), get_accuracy(test_yhat, Y_test));
+}
+
+float get_accuracy(Matrix *yhat, Matrix *Y) {
+    float correct_sum = 0;
+    for (int i = 0; i < Y->ncols; i++) {
+        if (yhat->mat[0][i] == Y->mat[0][i]) {
+            correct_sum += 1;
+        }
+    }
+    return correct_sum / Y->ncols;
+}
+
+void inference_one_example(Matrix *X_test, Matrix *Y_test, Weights *weights, int index) {
+    Matrix *X_example = allocate_matrix(X_test->nrows, 1);
+    copy_some_matrix_values(X_test, X_example, index, index + 1, false);
+
+    Matrix *yhat = allocate_matrix(1, 1);
+    Nodes *nodes = init_nodes(X_example, weights);
+    Deltas deltas;
+    init_deltas(&deltas, nodes, weights, X_example);
+    Misc misc;
+    init_misc(&misc, nodes, 1, weights, X_example);
+    forward_pass(nodes, X_example, weights);
+    argmax_into_yhat(nodes->A3, yhat);
+    display_matrix(X_example);
+    printf("Actual: %d, Predicted: %d at index %d\n", (int)Y_test->mat[0][index], (int) yhat->mat[0][0], index);
+
+    free_matrix_struct(X_example);
+    free_matrix_struct(yhat);
+    free_deltas(&deltas);
+    free_nodes(nodes);
+    free_misc(&misc);
+}
+
+void display_examples(int display_start, int display_end, Matrix *X_test, Matrix *Y_test, Weights *weights) {
+    for (int index = display_start; index < display_end; index++) {
+        inference_one_example(X_test, Y_test, weights, index);
+    }
+}
+
+void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hidden_2, int num_output) {
+    srand(time(NULL)); // ensures random weight values
+
+    // allocate and initiliaze weights to random values
+    weights->W1 = allocate_matrix(num_hidden_1, num_input);
+    weights->W2 = allocate_matrix(num_hidden_2, num_hidden_1 + 1);
+    weights->W3 = allocate_matrix(num_output, num_hidden_2 + 1);
+
+    randomize_weights(weights->W1);
+    randomize_weights(weights->W2);
+    randomize_weights(weights->W3);
+}

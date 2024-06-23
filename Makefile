@@ -15,7 +15,7 @@ net.o: neural_network.c mnist.h
 utils.o: utils.c mnist.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-matrix_ops.o: matrix_ops.c mnist.h
+matrix_ops.o: matrix_operations.c mnist.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 mnist_nn: main.o net.o utils.o matrix_ops.o
