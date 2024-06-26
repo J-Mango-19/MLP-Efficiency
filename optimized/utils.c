@@ -4,8 +4,8 @@
 #include <string.h>
 #include <stdio.h>
 
-Matrix read_csv(const char* filename) {
-    Matrix data_matrix;
+Fmatrix read_csv(const char* filename) {
+    Fmatrix data_matrix;
     data_matrix.nrows = 42000;
     data_matrix.ncols = 785;
     FILE *file = fopen(filename, "r");
@@ -15,40 +15,16 @@ Matrix read_csv(const char* filename) {
     }
 
     // Allocate memory for the 2D array
-    float **data = (float **)malloc(data_matrix.nrows * sizeof(float *));
-
-    for (int i = 0; i < data_matrix.nrows; i++) {
-        data[i] = (float *)malloc(data_matrix.ncols * sizeof(float));
-    }
+    float *data = (float *)malloc(data_matrix.nrows * data_matrix.ncols * sizeof(float));
 
     char line[16000]; // Large enough buffer to hold one line of the CSV file
 
     for (int i = 0; i < data_matrix.nrows; i++) {
-        if (!fgets(line, sizeof(line), file)) {
-            fprintf(stderr, "Error reading line %d\n", i);
-            // Free allocated memory before returning
-            for (int j = 0; j <= i; j++) {
-                free(data[j]);
-            }
-            free(data);
-            fclose(file);
-            return data_matrix;
-        }
+        fgets(line, sizeof(line), file);
         char *token = strtok(line, ",");
         for (int j = 0; j < data_matrix.ncols; j++) {
-            if (token) {
-                data[i][j] = strtof(token, NULL);
-                token = strtok(NULL, ",");
-            } else {
-                fprintf(stderr, "Error parsing line %d\n", i);
-                // Free allocated memory before returning
-                for (int k = 0; k <= i; k++) {
-                    free(data[k]);
-                }
-                free(data);
-                fclose(file);
-                return data_matrix;
-            }
+            data[i * data_matrix.ncols + j] = strtof(token, NULL);
+            token = strtok(NULL, ",");
         }
     }
     data_matrix.mat = data;
@@ -166,7 +142,7 @@ void free_deltas(Deltas *deltas) {
     free_matrix_struct(deltas->dW1);
 }    
 
-void init_misc(Misc *misc, Nodes *nodes, int batch_size, Weights *weights, Matrix *X) {
+void init_misc(Misc *misc, Nodes *nodes, int batch_size, Weights *weights, Fmatrix *X) {
     misc->one_hot_Y = allocate_matrix(10, batch_size);
     misc->A2T = allocate_matrix(nodes->A2->ncols, nodes->A2->nrows);
     misc->W3T = allocate_matrix(weights->W3->ncols, weights->W3->nrows);
@@ -175,7 +151,7 @@ void init_misc(Misc *misc, Nodes *nodes, int batch_size, Weights *weights, Matri
     misc->XT = allocate_matrix(X->ncols, X->nrows);
 }
 
-Nodes *init_nodes(Matrix *X, Weights *weights) {
+Nodes *init_nodes(Fmatrix *X, Weights *weights) {
     Nodes *nodes = malloc(sizeof(Nodes));
 
     // nodes in layers A1 & A2 have an extra row added to them (which will be set to 1's later) as a factor to the bias terms in the next layer's weights
@@ -190,22 +166,16 @@ Nodes *init_nodes(Matrix *X, Weights *weights) {
     return nodes;
 }
 
-void free_matrix_arr(Matrix *arr) {
-    for (int i = 0; i < arr->nrows; i++) {
-        free(arr->mat[i]);
-    }
+void free_matrix_arr(Fmatrix *arr) {
     free(arr->mat);
 }
 
-void free_matrix_struct(Matrix *arr) {
-    for (int i = 0; i < arr->nrows; i++) {
-        free(arr->mat[i]);
-    }
+void free_matrix_struct(Fmatrix *arr) {
     free(arr->mat);
     free(arr);
 }
 
-void init_deltas(Deltas *deltas, Nodes *nodes, Weights *weights, Matrix* X) {
+void init_deltas(Deltas *deltas, Nodes *nodes, Weights *weights, Fmatrix* X) {
     deltas->dZ3 = allocate_matrix(nodes->A3->nrows, nodes->A3->ncols);
     deltas->dW3 = allocate_matrix(deltas->dZ3->nrows, nodes->A2->nrows); // ie A2T->ncols
     deltas->dA2 = allocate_matrix(weights->W3->ncols, deltas->dZ3->ncols);
@@ -218,7 +188,7 @@ void init_deltas(Deltas *deltas, Nodes *nodes, Weights *weights, Matrix* X) {
     deltas->dW1 = allocate_matrix(deltas->dZ1->nrows, X->nrows); // ie XT.ncols
 }
 
-void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, Matrix *Y_test) {
+void split_data(Fmatrix *data, Fmatrix* X_train, Fmatrix *Y_train, Fmatrix *X_test, Fmatrix *Y_test) {
     /*
       Each row of data matrix (42000 x 785) is a class label concatenated with an image vector
       Each column of the X_train (785 x 41000) and X_test (785 x 1000) matrices will be an image vector, with one extra element allocated on the end for a bias factor
@@ -240,22 +210,22 @@ void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, 
 
     // assign values from original data matrix into splits
     for (int j = 0; j < Y_test->ncols; j++) {
-        Y_test->mat[0][j] = data->mat[j][0];
+        Y_test->mat[j] = data->mat[j * data->ncols];
     }
 
     for (int j = Y_test->ncols; j < Y_test->ncols + Y_train->ncols; j++) {
-        Y_train->mat[0][j - Y_test->ncols] = data->mat[j][0];
+        Y_train->mat[j - Y_test->ncols] = data->mat[j * data->ncols];
     }
 
     for (int i = 1; i < X_test->nrows; i++) {
         for (int j = 0; j < X_test->ncols; j++) {
-            X_test->mat[i - 1][j] = data->mat[j][i];
+            X_test->mat[ (i - 1) * X_test->ncols + j] = data->mat[j * data->ncols + i];
         }
     }
 
     for (int i = 1; i < X_train->nrows; i++) {
         for (int j = X_test->ncols; j < X_test->ncols + X_train->ncols; j++) {
-            X_train->mat[i - 1][j - X_test->ncols] = data->mat[j][i];
+            X_train->mat[ (i - 1) * X_train->ncols + j - X_test->ncols] = data->mat[j * data->ncols + i];
         }
     }
 
@@ -263,7 +233,7 @@ void split_data(Matrix *data, Matrix* X_train, Matrix *Y_train, Matrix *X_test, 
     free_matrix_arr(data);
 }
 
-void free_matrix_structs(Matrix *test_yhat, Matrix *train_yhat, Matrix *X_batch, Matrix *Y_batch, Matrix *W1, Matrix *W2, Matrix *W3) {
+void free_matrix_structs(Fmatrix *test_yhat, Fmatrix *train_yhat, Fmatrix *X_batch, Fmatrix *Y_batch, Fmatrix *W1, Fmatrix *W2, Fmatrix *W3) {
     free_matrix_struct(test_yhat);
     free_matrix_struct(train_yhat);
     free_matrix_struct(X_batch);
@@ -273,7 +243,7 @@ void free_matrix_structs(Matrix *test_yhat, Matrix *train_yhat, Matrix *X_batch,
     free_matrix_struct(W3);
 }
 
-void free_matrix_arrays(Matrix *X_test, Matrix *X_train, Matrix *Y_test, Matrix *Y_train) {
+void free_matrix_arrays(Fmatrix *X_test, Fmatrix *X_train, Fmatrix *Y_test, Fmatrix *Y_train) {
     free_matrix_arr(X_test);
     free_matrix_arr(X_train);
     free_matrix_arr(Y_test);
@@ -286,7 +256,7 @@ void free_all_nodes(Nodes *nodes_train, Nodes *nodes_test, Nodes *nodes_batch) {
     free_nodes(nodes_batch);
 }
 
-void get_next_batch(int i, int batch_size, Matrix *X_train, Matrix *Y_train, Matrix *X_batch, Matrix *Y_batch) {
+void get_next_batch(int i, int batch_size, Fmatrix *X_train, Fmatrix *Y_train, Fmatrix *X_batch, Fmatrix *Y_batch) {
     // calculate next batch index
     int start_idx = ((i + 1) * batch_size) % X_train->ncols;
     int end_idx = ((i + 2) * batch_size) % X_train->ncols;
@@ -301,22 +271,22 @@ float random_float() {
     return ((float)rand() / (float)RAND_MAX);
 }
 
-void randomize_weights(Matrix *W) {
+void randomize_weights(Fmatrix *W) {
     // Initialize every value of each matrix according to a uniform distribution on (-0.5, 0.5)
     for (int i = 0; i < W->nrows; i++) {
         for (int j = 0; j < W->ncols; j++) {
-            W->mat[i][j] = random_float() - 0.5;
+            W->mat[i * W->ncols + j] = random_float() - 0.5;
         }
     }
 }
 
-void append_bias_factor(Matrix *A) {
+void append_bias_factor(Fmatrix *A) {
     for (int j = 0; j < A->ncols; j++) {
-        A->mat[A->nrows - 1][j] = 1;
+        A->mat[ (A->nrows - 1) * A->ncols + j] = 1;
     }
 }
 
-void print_accuracy(int i, Nodes *nodes_train, Nodes *nodes_test, Matrix *X_train, Matrix *X_test, Matrix *train_yhat, Matrix *test_yhat, Matrix *Y_train, Matrix *Y_test, Weights *weights) {
+void print_accuracy(int i, Nodes *nodes_train, Nodes *nodes_test, Fmatrix *X_train, Fmatrix *X_test, Fmatrix *train_yhat, Fmatrix *test_yhat, Fmatrix *Y_train, Fmatrix *Y_test, Weights *weights) {
     forward_pass(nodes_train, X_train, weights);
     forward_pass(nodes_test, X_test, weights);
     argmax_into_yhat(nodes_train->A3, train_yhat);
@@ -324,21 +294,21 @@ void print_accuracy(int i, Nodes *nodes_train, Nodes *nodes_test, Matrix *X_trai
     printf("Iteration: %d | Train Accuracy: %f, Test Accuracy: %f\n", i, get_accuracy(train_yhat, Y_train), get_accuracy(test_yhat, Y_test));
 }
 
-float get_accuracy(Matrix *yhat, Matrix *Y) {
+float get_accuracy(Fmatrix *yhat, Fmatrix *Y) {
     float correct_sum = 0;
     for (int i = 0; i < Y->ncols; i++) {
-        if (yhat->mat[0][i] == Y->mat[0][i]) {
+        if (yhat->mat[i] == Y->mat[i]) {
             correct_sum += 1;
         }
     }
     return correct_sum / Y->ncols;
 }
 
-void inference_one_example(Matrix *X_test, Matrix *Y_test, Weights *weights, int index) {
-    Matrix *X_example = allocate_matrix(X_test->nrows, 1);
+void inference_one_example(Fmatrix *X_test, Fmatrix *Y_test, Weights *weights, int index) {
+    Fmatrix *X_example = allocate_matrix(X_test->nrows, 1);
     copy_some_matrix_values(X_test, X_example, index, index + 1, false);
 
-    Matrix *yhat = allocate_matrix(1, 1);
+    Fmatrix *yhat = allocate_matrix(1, 1);
     Nodes *nodes = init_nodes(X_example, weights);
     Deltas deltas;
     init_deltas(&deltas, nodes, weights, X_example);
@@ -347,7 +317,7 @@ void inference_one_example(Matrix *X_test, Matrix *Y_test, Weights *weights, int
     forward_pass(nodes, X_example, weights);
     argmax_into_yhat(nodes->A3, yhat);
     display_matrix(X_example);
-    printf("Actual: %d, Predicted: %d at index %d\n", (int)Y_test->mat[0][index], (int) yhat->mat[0][0], index);
+    printf("Actual: %d, Predicted: %d at index %d\n", (int)Y_test->mat[index], (int) yhat->mat[0], index);
 
     free_matrix_struct(X_example);
     free_matrix_struct(yhat);
@@ -356,7 +326,7 @@ void inference_one_example(Matrix *X_test, Matrix *Y_test, Weights *weights, int
     free_misc(&misc);
 }
 
-void display_examples(int display_start, int display_end, Matrix *X_test, Matrix *Y_test, Weights *weights) {
+void display_examples(int display_start, int display_end, Fmatrix *X_test, Fmatrix *Y_test, Weights *weights) {
     for (int index = display_start; index < display_end; index++) {
         inference_one_example(X_test, Y_test, weights, index);
     }

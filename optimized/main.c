@@ -9,8 +9,9 @@ int main(int argc, char *argv[]) {
 
     // read in & prepare data (misc, train/test split, x/y split, normalize x values, append bias factor)
     Preferences *preferences = get_input(argc, argv);
-    Matrix data = read_csv("MNIST_data.csv");
-    Matrix X_train, X_test, Y_train, Y_test;
+    Fmatrix data = read_csv("MNIST_data.csv");
+    printf("data[5][10]: %f\n", data.mat[5 * data.ncols + 10]);
+    Fmatrix X_train, X_test, Y_train, Y_test;
     split_data(&data, &X_train, &Y_train, &X_test, &Y_test);
     scale_matrix(&X_train, (float) 1 / 255);
     scale_matrix(&X_test, (float) 1 / 255);
@@ -22,10 +23,11 @@ int main(int argc, char *argv[]) {
     init_weights(&weights, X_train.nrows, preferences->num_hidden_1, preferences->num_hidden_2, 10);
 
     // get a batch of the data to begin training on 
-    Matrix *X_batch = allocate_matrix(X_train.nrows, preferences->batch_size);
-    Matrix *Y_batch = allocate_matrix(1, preferences->batch_size);
+    Fmatrix *X_batch = allocate_matrix(X_train.nrows, preferences->batch_size);
+    Fmatrix *Y_batch = allocate_matrix(1, preferences->batch_size);
     copy_some_matrix_values(&X_train, X_batch, 0, preferences->batch_size, false);
     copy_some_matrix_values(&Y_train, Y_batch, 0, preferences->batch_size, false);
+
 
     // initialize nodes (Number of nodes in each layer will vary with the batch size) and deltas (derivatives) and miscellaneous matrices
     Nodes *nodes_batch = init_nodes(X_batch, &weights);
@@ -37,8 +39,8 @@ int main(int argc, char *argv[]) {
     // nodes_train and nodes_test will be used in the forward pass for training and testing accuracy
     Nodes *nodes_train = init_nodes(&X_train, &weights);
     Nodes *nodes_test = init_nodes(&X_test, &weights);
-    Matrix *train_yhat = allocate_matrix(10, Y_train.ncols);
-    Matrix *test_yhat = allocate_matrix(10, Y_test.ncols);
+    Fmatrix *train_yhat = allocate_matrix(10, Y_train.ncols);
+    Fmatrix *test_yhat = allocate_matrix(10, Y_test.ncols);
     end = clock();
     printf("Allocation took %lf seconds to execute\n", ((double) (end - start)) / CLOCKS_PER_SEC);
 
@@ -56,6 +58,7 @@ int main(int argc, char *argv[]) {
         }
 
         get_next_batch(i, preferences->batch_size, &X_train, &Y_train, X_batch, Y_batch);
+
     }
     end = clock();
     printf("Training (non-allocation) operations of program took %f seconds to execute\n", ((double) (end - start)) / CLOCKS_PER_SEC);

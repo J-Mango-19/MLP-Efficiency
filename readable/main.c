@@ -10,6 +10,7 @@ int main(int argc, char *argv[]) {
     // read in & prepare data (misc, train/test split, x/y split, normalize x values, append bias factor)
     Preferences *preferences = get_input(argc, argv);
     Matrix data = read_csv("MNIST_data.csv");
+    printf("Data[5][10]: %f\n", data.mat[5][10]);
     Matrix X_train, X_test, Y_train, Y_test;
     split_data(&data, &X_train, &Y_train, &X_test, &Y_test);
     scale_matrix(&X_train, (float) 1 / 255);
@@ -41,6 +42,13 @@ int main(int argc, char *argv[]) {
     Matrix *test_yhat = allocate_matrix(10, Y_test.ncols);
     end = clock();
     printf("Allocation took %lf seconds to execute\n", ((double) (end - start)) / CLOCKS_PER_SEC);
+
+    //debugging
+    printf("X_batch: (%d, %d)\n", X_batch->nrows, X_batch->ncols);
+    printf("W1: (%d, %d)\n", weights.W1->nrows, weights.W1->ncols);
+    printf("W2: (%d, %d)\n", weights.W2->nrows, weights.W2->ncols);
+    printf("W3: (%d, %d)\n", weights.W3->nrows, weights.W3->ncols);
+
 
     // main training loop
     start = clock();

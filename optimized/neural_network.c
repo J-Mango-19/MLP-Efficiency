@@ -5,12 +5,12 @@
 #include <math.h>
 #include <time.h>
 
-void softmax(Matrix *Z) {
+void softmax(Fmatrix *Z) {
     // define a matrix of exponentials of the Z matrix
-    float exp_matrix[Z->nrows][Z->ncols]; 
+    float exp_matrix[Z->nrows * Z->ncols]; 
     for (int i = 0; i < Z->nrows; i++) {
        for (int j = 0; j < Z->ncols; j++) {
-            exp_matrix[i][j] = exp(Z->mat[i][j]);
+            exp_matrix[i * Z->ncols + j] = exp(Z->mat[i * Z->ncols + j]);
         }
     }
 
@@ -19,23 +19,23 @@ void softmax(Matrix *Z) {
     for (int j = 0; j < Z->ncols; j++) {
         float col_sum = 0; 
         for (int i = 0; i < Z->nrows; i++) {
-           col_sum += exp_matrix[i][j];
+           col_sum += exp_matrix[i * Z->ncols + j];
         }
         for (int i = 0; i < Z->nrows; i++) {
-           Z->mat[i][j] = exp_matrix[i][j] / col_sum;
+           Z->mat[i * Z->ncols + j] = exp_matrix[i * Z->ncols + j] / col_sum;
         }
    }
 }
 
-void relu(Matrix *Z) {
+void relu(Fmatrix *Z) {
     for (int i = 0; i < Z->nrows; i++) {
         for (int j = 0; j < Z->ncols; j++) {
-            if (Z->mat[i][j] < 0) Z->mat[i][j] = 0;
+            if (Z->mat[i * Z->ncols + j] < 0) Z->mat[i * Z->ncols +j] = 0;
         }
     }
 }
 
-void forward_pass(Nodes *nodes, Matrix *X, Weights *weights) { 
+void forward_pass(Nodes *nodes, Fmatrix *X, Weights *weights) { 
     // layer 1
     multiply_matrices(weights->W1, X, nodes->Z1);
     copy_all_matrix_values(nodes->Z1, nodes->A1); 
@@ -54,18 +54,18 @@ void forward_pass(Nodes *nodes, Matrix *X, Weights *weights) {
     softmax(nodes->A3);
 }
 
-void deriv_relu(Matrix *Z, Matrix *derivative) {
+void deriv_relu(Fmatrix *Z, Fmatrix *derivative) {
     for (int i = 0; i < Z->nrows; i++) {
         for (int j = 0; j < Z->ncols; j++) {
-            if (Z->mat[i][j] > 0) 
-                derivative->mat[i][j] = 1;
+            if (Z->mat[i * Z->ncols + j] > 0) 
+                derivative->mat[i * derivative->ncols + j] = 1;
             else
-                derivative->mat[i][j] = 0;
+                derivative->mat[i * derivative->ncols + j] = 0;
             }
     }
 }
 
-void backward_pass(Matrix *X, Nodes *nodes, Weights *weights, Matrix *Y, Deltas *deltas, Misc *misc) {
+void backward_pass(Fmatrix *X, Nodes *nodes, Weights *weights, Fmatrix *Y, Deltas *deltas, Misc *misc) {
     one_hot(Y, misc->one_hot_Y);
     subtract_matrices(nodes->A3, misc->one_hot_Y, deltas->dZ3); // dL/dZ3 = A3 - one_hot_Y
     transpose_matrix(nodes->A2, misc->A2T);               
@@ -91,27 +91,27 @@ void backward_pass(Matrix *X, Nodes *nodes, Weights *weights, Matrix *Y, Deltas 
 }
 
 void update_weights(Deltas *deltas, Weights *weights, float lr) {
-    Matrix *W1 = weights->W1;
-    Matrix *W2 = weights->W2;
-    Matrix *W3 = weights->W3;
+    Fmatrix *W1 = weights->W1;
+    Fmatrix *W2 = weights->W2;
+    Fmatrix *W3 = weights->W3;
     for (int i = 0; i < W3->nrows; i++) {
         for (int j = 0; j < W3->ncols; j++) {
-            W3->mat[i][j] -= lr * deltas->dW3->mat[i][j];
-            deltas->dW3->mat[i][j] = 0;
+            W3->mat[i * W3->ncols + j] -= lr * deltas->dW3->mat[i * W3->ncols + j];
+            deltas->dW3->mat[i * W3->ncols + j] = 0;
         }
     }
 
     for (int i = 0; i < W2->nrows; i++) {
         for (int j = 0; j < W2->ncols; j++) {
-            W2->mat[i][j] -= lr * deltas->dW2->mat[i][j];
-            deltas->dW2->mat[i][j] = 0;
+            W2->mat[i * W2->ncols + j] -= lr * deltas->dW2->mat[i * W2->ncols + j];
+            deltas->dW2->mat[i * W2->ncols + j] = 0;
         }
     }
 
     for (int i = 0; i < W1->nrows; i++) {
         for (int j = 0; j < W1->ncols; j++) {
-            W1->mat[i][j] -= lr * deltas->dW1->mat[i][j];
-            deltas->dW1->mat[i][j] = 0;
+            W1->mat[i * W1->ncols + j] -= lr * deltas->dW1->mat[i * W1->ncols + j];
+            deltas->dW1->mat[i * W1->ncols + j] = 0;
         }
     }
 }
