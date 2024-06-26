@@ -1,5 +1,5 @@
 CC= gcc
-CFLAGS= -Wall -g -lm -std=gnu99 -O0
+CFLAGS= -Wall -g -lm -std=gnu99 -mavx -O3
 LD= gcc
 LDFLAGS = -L. -lm 
 TARGETS = mnist_nn clean_obj
@@ -15,7 +15,7 @@ net.o: neural_network.c mnist.h
 utils.o: utils.c mnist.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-matrix_ops.o: matrix_operations.c mnist.h
+matrix_ops.o: matrix_operations.c mnist.h 
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 mnist_nn: main.o net.o utils.o matrix_ops.o

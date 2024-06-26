@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <immintrin.h>
+
 
 float *initialize_array(int nrows, int ncols) {
     float *arr = malloc(nrows * ncols * sizeof(float));
@@ -34,9 +36,11 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
     float *Amat = A->mat;
     float *Bmat = B->mat;
     float *Cmat = C->mat;
+    /*
     float *ap;
     float *bp = &Bmat[0];
     float *cp = &Cmat[0];
+    */
     int i, j, k;
 
     if (A->ncols != B->nrows) {
@@ -47,6 +51,32 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
 
     //set the matrix to zero
     memset(Cmat, 0, C->ncols * C->nrows * sizeof(float));
+
+
+    /*
+    for (k = 0; k < ncolsA; k++) {
+      ap = &Amat[k];
+      for (i = 0; i < nrows; i++) {
+        cp = &Cmat[i * ncols];
+        bp = &Bmat[k * ncols];
+        register float a_val = *ap;
+        for (j = 0; j < ncols - 4; j += 4) {
+            register float b1 = *bp++;
+            register float b2 = *bp++;
+            register float b3 = *bp++;
+            register float b4 = *bp++;
+            *cp++ += a_val * b1;
+            *cp++ += a_val * b2;
+            *cp++ += a_val * b3;
+            *cp++ += a_val * b4;
+        }
+        for (; j < ncols; j++) {
+          *cp++ += *ap * *bp++;
+        }
+        ap += ncolsA;
+      }
+      ap++;
+    }
 
     for (k = 0; k < ncolsA; k++) {
       ap = &Amat[k];
@@ -66,36 +96,24 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
       }
       ap++;
     }
-    /*
 
-    //testing non optimized on compiler
-
-    // N: number of rows in A and C
-    // M: number of columns in A and rows in B
-    // K: number of columns in B and C
-    int N = C->nrows;
-    int M = A->ncols;
-    int K = B->ncols;
-    float *Cmat = C->mat;
-    float *Amat = A->mat;
-    float *Bmat = B->mat;
-
-    // Initialize C to zero
-
-    memset(Cmat, 0, C->ncols * C->nrows * sizeof(float));
-    int rowsize, colsize;
-
-    // Perform matrix multiplication
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < K; j++) {
-            rowsize = i * K;
-            colsize = i * M;
-            for (int k = 0; k < M; k++) {
-                Cmat[rowsize + j] += Amat[colsize + k] * Bmat[k * K + j];
+    */
+    // !! from chat!!
+    for (i = 0; i < nrows; i++) {
+        for (k = 0; k < ncolsA; k++) {
+            __m256 a = _mm256_set1_ps(Amat[i * ncolsA + k]);
+            for (j = 0; j <= ncols - 8; j += 8) {
+                __m256 b = _mm256_loadu_ps(&Bmat[k * ncols + j]);
+                __m256 c = _mm256_loadu_ps(&Cmat[i * ncols + j]);
+                c = _mm256_add_ps(c, _mm256_mul_ps(a, b));
+                _mm256_storeu_ps(&Cmat[i * ncols + j], c);
+            }
+            // Handle remaining elements
+            for (; j < ncols; j++) {
+                Cmat[i * ncols + j] += Amat[i * ncolsA + k] * Bmat[k * ncols + j];
             }
         }
     }
-    */
 
 
 
