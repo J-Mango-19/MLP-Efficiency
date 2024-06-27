@@ -5,6 +5,7 @@ efficiency boosts:
 2: Loop unrolling in matrix multiplication
 3: Storing inner loop variables in registers
 4: SIMD using avx
+5: Improved pointer arithmetic and general program efficiency
 
 With optimizations, this actually makes the program slower than the simple 2d array implementation
 
@@ -12,6 +13,7 @@ With optimizations, this actually makes the program slower than the simple 2d ar
 
 0:   -O0: 33.2 training and 4.25 full forward
      -O1: 9.2 training and 1.17 full forward
+     -O3: 5.20 training and 0.66 full forward
 
 1:   -O0: 34.8 training and 4.7 full forward
      -O1: 21.4 training and 3.0 full forward
@@ -29,4 +31,7 @@ With optimizations, this actually makes the program slower than the simple 2d ar
      -O1: 2.31 training and 0.33 full forward
      -O2: 2.20 training and 0.32 full forward
      -O3: 2.23 training and 0.32 full forward
+
+5:   -O0: 7.92 training and 0.98 full forward
+     -O1: 2.39 training and 0.32 full forward
 

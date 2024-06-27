@@ -36,11 +36,9 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
     float *Amat = A->mat;
     float *Bmat = B->mat;
     float *Cmat = C->mat;
-    /*
-    float *ap;
-    float *bp = &Bmat[0];
-    float *cp = &Cmat[0];
-    */
+    float *Ap = &Amat[0];
+    float *Bp = &Bmat[0];
+    float *Cp = &Cmat[0];
     int i, j, k;
 
     if (A->ncols != B->nrows) {
@@ -100,18 +98,25 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
     */
     // !! from chat!!
     for (i = 0; i < nrows; i++) {
+        Ap = &Amat[i * ncolsA];
         for (k = 0; k < ncolsA; k++) {
-            __m256 a = _mm256_set1_ps(Amat[i * ncolsA + k]);
+            __m256 a = _mm256_set1_ps(*Ap++);
+            Bp = &Bmat[k * ncols];
+            Cp = &Cmat[i * ncols];
             for (j = 0; j <= ncols - 8; j += 8) {
-                __m256 b = _mm256_loadu_ps(&Bmat[k * ncols + j]);
-                __m256 c = _mm256_loadu_ps(&Cmat[i * ncols + j]);
+                __m256 b = _mm256_loadu_ps(Bp);
+                __m256 c = _mm256_loadu_ps(Cp);
                 c = _mm256_add_ps(c, _mm256_mul_ps(a, b));
-                _mm256_storeu_ps(&Cmat[i * ncols + j], c);
+                _mm256_storeu_ps(Cp, c);
+                Bp += 8;
+                Cp += 8;
             }
             // Handle remaining elements
+            Ap--;
             for (; j < ncols; j++) {
-                Cmat[i * ncols + j] += Amat[i * ncolsA + k] * Bmat[k * ncols + j];
+                *Cp++ += *Ap * *Bp++;  
             }
+            Ap++;
         }
     }
 }
