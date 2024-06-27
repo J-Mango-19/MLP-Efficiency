@@ -6,32 +6,51 @@
 #include <time.h>
 
 void softmax(Fmatrix *Z) {
-    // define a matrix of exponentials of the Z matrix
     float exp_matrix[Z->nrows * Z->ncols]; 
-    for (int i = 0; i < Z->nrows; i++) {
-       for (int j = 0; j < Z->ncols; j++) {
-            exp_matrix[i * Z->ncols + j] = exp(Z->mat[i * Z->ncols + j]);
+    float *Ep = &exp_matrix[0];
+    float *Zp = &Z->mat[0];
+    int nrows = Z->nrows;
+    int ncols = Z->ncols;
+
+    // since there are 10 classes, Z will have 10 rows
+    for (int i = 0; i < 10; i++) {
+        Ep = &exp_matrix[i];
+        Zp = &Z->mat[ncols * i];
+        for (int j = 0; j < ncols; j++) {
+            *Ep = exp(*Zp++);
+            Ep += nrows;
         }
     }
 
     // for each column, sum the exponential matrix values
     // then divide each element of the col by the sum and store it
-    for (int j = 0; j < Z->ncols; j++) {
+    for (int j = 0; j < ncols; j++) {
         float col_sum = 0; 
-        for (int i = 0; i < Z->nrows; i++) {
-           col_sum += exp_matrix[i * Z->ncols + j];
+        Ep = &exp_matrix[j * nrows];
+        for (int i = 0; i < nrows; i++) {
+           col_sum += *Ep++;
         }
-        for (int i = 0; i < Z->nrows; i++) {
-           Z->mat[i * Z->ncols + j] = exp_matrix[i * Z->ncols + j] / col_sum;
+        Ep = &exp_matrix[j * nrows];
+        Zp = &Z->mat[j];
+        for (int i = 0; i < nrows; i++) {
+           *Zp = *Ep++ / col_sum;
+           Zp += ncols;
         }
-   }
+    }
+    // Z is 10 x 42k ie very long so the best way to access is along the rows 
+    // e is 42k x 10 ie very tall so the best way to access is along the columns
+    // task is to look at a chunk of 10 at a time, then move onto the next chunk of 10
+    // this would mean e is very efficient to access
+    // ill start by accessing e better using the transposed values then check training then try out transposing z for better writing acess
+
 }
 
 void relu(Fmatrix *Z) {
-    for (int i = 0; i < Z->nrows; i++) {
-        for (int j = 0; j < Z->ncols; j++) {
-            if (Z->mat[i * Z->ncols + j] < 0) Z->mat[i * Z->ncols +j] = 0;
-        }
+    int size = Z->nrows * Z->ncols;
+    float *Zp = &Z->mat[0];
+    for (int i = 0; i < size; i++) {
+        if (*Zp < 0) *Zp = 0;
+        Zp++;
     }
 }
 
@@ -55,14 +74,14 @@ void forward_pass(Nodes *nodes, Fmatrix *X, Weights *weights) {
 }
 
 void deriv_relu(Fmatrix *Z, Fmatrix *derivative) {
-    for (int i = 0; i < Z->nrows; i++) {
-        for (int j = 0; j < Z->ncols; j++) {
-            if (Z->mat[i * Z->ncols + j] > 0) 
-                derivative->mat[i * derivative->ncols + j] = 1;
-            else
-                derivative->mat[i * derivative->ncols + j] = 0;
-            }
+    int size = Z->nrows * Z->ncols;
+    float *Zp = &Z->mat[0];
+    float *Dp = &derivative->mat[0];
+    for (int i = 0; i < size; i++) {
+        if (*Zp++ > 0) *Dp++ = 1;
+        else *Dp++ = 0;
     }
+
 }
 
 void backward_pass(Fmatrix *X, Nodes *nodes, Weights *weights, Fmatrix *Y, Deltas *deltas, Misc *misc) {
@@ -91,28 +110,27 @@ void backward_pass(Fmatrix *X, Nodes *nodes, Weights *weights, Fmatrix *Y, Delta
 }
 
 void update_weights(Deltas *deltas, Weights *weights, float lr) {
-    Fmatrix *W1 = weights->W1;
-    Fmatrix *W2 = weights->W2;
-    Fmatrix *W3 = weights->W3;
-    for (int i = 0; i < W3->nrows; i++) {
-        for (int j = 0; j < W3->ncols; j++) {
-            W3->mat[i * W3->ncols + j] -= lr * deltas->dW3->mat[i * W3->ncols + j];
-            deltas->dW3->mat[i * W3->ncols + j] = 0;
-        }
+
+    float *W1p = &weights->W1->mat[0];
+    float *W2p = &weights->W2->mat[0];
+    float *W3p = &weights->W3->mat[0];
+    int size_W1 = weights->W1->nrows * weights->W1->ncols;
+    int size_W2 = weights->W2->nrows * weights->W2->ncols;
+    int size_W3 = weights->W3->nrows * weights->W3->ncols;
+    float *dW1p = &deltas->dW1->mat[0];
+    float *dW2p = &deltas->dW2->mat[0];
+    float *dW3p = &deltas->dW3->mat[0];
+
+    for (int i = 0; i < size_W1; i++) {
+        *W1p++ -= lr * *dW1p++;
     }
 
-    for (int i = 0; i < W2->nrows; i++) {
-        for (int j = 0; j < W2->ncols; j++) {
-            W2->mat[i * W2->ncols + j] -= lr * deltas->dW2->mat[i * W2->ncols + j];
-            deltas->dW2->mat[i * W2->ncols + j] = 0;
-        }
+    for (int i = 0; i < size_W2; i++) {
+        *W2p++ -= lr * *dW2p++;
     }
 
-    for (int i = 0; i < W1->nrows; i++) {
-        for (int j = 0; j < W1->ncols; j++) {
-            W1->mat[i * W1->ncols + j] -= lr * deltas->dW1->mat[i * W1->ncols + j];
-            deltas->dW1->mat[i * W1->ncols + j] = 0;
-        }
+    for (int i = 0; i < size_W3; i++) {
+        *W3p++ -= lr * *dW3p++;
     }
 }
 

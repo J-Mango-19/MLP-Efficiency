@@ -19,13 +19,16 @@ Fmatrix read_csv(const char* filename) {
 
     char line[16000]; // Large enough buffer to hold one line of the CSV file
 
-    for (int i = 0; i < data_matrix.nrows; i++) {
-        fgets(line, sizeof(line), file);
-        char *token = strtok(line, ",");
-        for (int j = 0; j < data_matrix.ncols; j++) {
-            data[i * data_matrix.ncols + j] = strtof(token, NULL);
-            token = strtok(NULL, ",");
+    int size = data_matrix.nrows * data_matrix.ncols;
+    float *Dp = &data[0];
+    char *token;
+    for (int i = 0; i < size; i++) {
+        if (i % data_matrix.ncols == 0) {
+            fgets(line, sizeof(line), file);
+            token = strtok(line, ",");
         }
+        *Dp++ = strtof(token, NULL);
+        token = strtok(NULL, ",");
     }
     data_matrix.mat = data;
     fclose(file);
@@ -267,7 +270,7 @@ void get_next_batch(int i, int batch_size, Fmatrix *X_train, Fmatrix *Y_train, F
     copy_some_matrix_values(Y_train, Y_batch, start_idx, end_idx, true);
 }
 
-float random_float() {
+inline float random_float() {
     return ((float)rand() / (float)RAND_MAX);
 }
 
@@ -281,8 +284,9 @@ void randomize_weights(Fmatrix *W) {
 }
 
 void append_bias_factor(Fmatrix *A) {
+    float *Ap = &A->mat[(A->nrows - 1) * A->ncols];
     for (int j = 0; j < A->ncols; j++) {
-        A->mat[ (A->nrows - 1) * A->ncols + j] = 1;
+        *Ap++ = 1;
     }
 }
 
@@ -296,11 +300,15 @@ void print_accuracy(int i, Nodes *nodes_train, Nodes *nodes_test, Fmatrix *X_tra
 
 float get_accuracy(Fmatrix *yhat, Fmatrix *Y) {
     float correct_sum = 0;
+    float *YhatP = &yhat->mat[0];
+    float *Yp = &Y->mat[0];
+
     for (int i = 0; i < Y->ncols; i++) {
-        if (yhat->mat[i] == Y->mat[i]) {
+        if (*YhatP++ == *Yp++) {
             correct_sum += 1;
         }
     }
+
     return correct_sum / Y->ncols;
 }
 

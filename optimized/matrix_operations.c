@@ -114,10 +114,6 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
             }
         }
     }
-
-
-
-
 }
 
 
@@ -127,31 +123,21 @@ void multiply_matrices_elementwise(Fmatrix *A, Fmatrix *B, Fmatrix *C, bool omit
         fprintf(stderr, "Error! Elementwise multiplication matrix dimensions incompatible\n");
         exit(1);
     }
+    int size = A->nrows * A->ncols;
+    float *Ap = &A->mat[0];
+    float *Bp = &B->mat[0];
+    float *Cp = &C->mat[0];
 
-    float *Amat = A->mat;
-    float *Bmat = B->mat;
-    float *Cmat = C->mat;
-    int nrows = C->nrows;
-    int ncols = C->ncols;
-    int index;
-
-    for (int i = 0; i < nrows; i++) {
-        for (int j = 0; j < ncols; j++) {
-            index = i * ncols + j;
-            Cmat[index] = Amat[index] * Bmat[index];
-        }
+    for (int i = 0; i < size; i++) {
+        *Cp++ = *Ap++ * *Bp++;
     }
 }
 
 void scale_matrix(Fmatrix *matrix, float factor) {
-    float *mat = matrix->mat;
-    int nrows = matrix->nrows;
-    int ncols = matrix->ncols;
-
-    for (int i = 0; i < nrows; i++) {
-        for (int j = 0 ; j < ncols; j++) {
-            mat[i * ncols + j] *= factor;
-        }
+    float *Mp = &matrix->mat[0];
+    int size = matrix->nrows * matrix->ncols;
+    for (int i = 0; i < size; i++) {
+        *Mp++ *= factor;
     }
 }
 
@@ -161,18 +147,12 @@ void subtract_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
         fprintf(stderr, "A: (%d, %d), B: (%d, %d)\n", A->nrows, A->ncols, B->nrows, B->ncols);
         exit(1);
     }
-    int index;
-    float *Amat = A->mat;
-    float *Bmat = B->mat;
-    float *Cmat = C->mat;
-    int nrows = A->nrows;
-    int ncols = A->ncols;
-
-    for (int i = 0; i < nrows; i++) {
-        for (int j = 0; j < ncols; j++) {
-            index = i * ncols + j;
-            Cmat[index] = Amat[index] - Bmat[index];
-        }
+    int size = A->nrows * A->ncols;
+    float *Ap = &A->mat[0];
+    float *Bp = &B->mat[0];
+    float *Cp = &C->mat[0];
+    for (int i = 0; i < size; i++) {
+        *Cp++ = *Ap++ - *Bp++;
     }
 }
 
@@ -230,12 +210,16 @@ void copy_some_matrix_values(Fmatrix *original, Fmatrix *New, int start_idx, int
 }
 
 void one_hot(Fmatrix *Y, Fmatrix* one_hot_Y) {
+    float *One_hot;
+    float *Yp; 
     for (int i = 0; i < one_hot_Y->nrows; i++) {
+        One_hot = &one_hot_Y->mat[i * one_hot_Y->ncols];
+        Yp = &Y->mat[0];
         for (int j = 0; j < one_hot_Y->ncols; j++) {
-            if (i == Y->mat[j]) 
-                one_hot_Y->mat[i * one_hot_Y->ncols + j] = 1;
-            else
-                one_hot_Y->mat[i * one_hot_Y->ncols + j] = 0;
+            if (i == *Yp++) 
+                *One_hot++ = 1;
+            else 
+                *One_hot++ = 0;
         }
     }
 }
