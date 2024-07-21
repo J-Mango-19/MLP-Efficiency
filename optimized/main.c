@@ -27,7 +27,6 @@ int main(int argc, char *argv[]) {
     copy_some_matrix_values(&X_train, X_batch, 0, preferences->batch_size, false);
     copy_some_matrix_values(&Y_train, Y_batch, 0, preferences->batch_size, false);
 
-
     // initialize nodes (Number of nodes in each layer will vary with the batch size) and deltas (derivatives) and miscellaneous matrices
     Nodes *nodes_batch = init_nodes(X_batch, &weights);
     Deltas deltas; 

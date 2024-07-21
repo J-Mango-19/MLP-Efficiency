@@ -45,7 +45,7 @@ void softmax(Fmatrix *Z) {
 
 }
 
-void relu(Fmatrix *Z) {
+inline void relu(Fmatrix *Z) {
     int size = Z->nrows * Z->ncols;
     float *Zp = &Z->mat[0];
     for (int i = 0; i < size; i++) {

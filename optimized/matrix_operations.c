@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <immintrin.h>
+#include <time.h>
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
 
 
 float *initialize_array(int nrows, int ncols) {
@@ -21,9 +24,17 @@ Fmatrix *allocate_matrix(int nrows, int ncols) {
 void transpose_matrix(Fmatrix *original, Fmatrix *transposed) {
     int nrows = original->nrows;
     int ncols = original->ncols;
+    float *Tmat = transposed->mat;
+    float *Omat = original->mat;
+    float *Tp, *Op;
+
     for (int j = 0; j < ncols; j++) {
+        Tp = &Tmat[j * nrows];
+        Op = &Omat[j];
         for (int i = 0; i < nrows; i++) {
-            transposed->mat[j * nrows + i] = original->mat[i * ncols + j];
+            //Tmat[j * nrows + i] = Omat[i * ncols + j];
+            *Tp++ = *Op;
+            Op += ncols;
         }
     }
 }
@@ -39,7 +50,7 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
     float *Ap = &Amat[0];
     float *Bp = &Bmat[0];
     float *Cp = &Cmat[0];
-    int i, j, k;
+    int i, k;
 
     if (A->ncols != B->nrows) {
         fprintf(stderr, "Error! Factor matrix dimensions incompatible\n");
@@ -97,30 +108,30 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
 
     */
     // !! from chat!!
+    float *end_ptr;
     for (i = 0; i < nrows; i++) {
         Ap = &Amat[i * ncolsA];
         for (k = 0; k < ncolsA; k++) {
-            __m256 a = _mm256_set1_ps(*Ap++);
+            __m256 a = _mm256_set1_ps(*Ap);
             Bp = &Bmat[k * ncols];
             Cp = &Cmat[i * ncols];
-            for (j = 0; j <= ncols - 8; j += 8) {
+            end_ptr = (Cp + ncols) - 8;
+            for(; Cp <= end_ptr; Cp += 8) {
                 __m256 b = _mm256_loadu_ps(Bp);
                 __m256 c = _mm256_loadu_ps(Cp);
                 c = _mm256_add_ps(c, _mm256_mul_ps(a, b));
                 _mm256_storeu_ps(Cp, c);
                 Bp += 8;
-                Cp += 8;
             }
             // Handle remaining elements
-            Ap--;
-            for (; j < ncols; j++) {
-                *Cp++ += *Ap * *Bp++;  
+            end_ptr += 8;
+            while (Cp < end_ptr) {
+                *Cp++ += *Ap * *Bp++;
             }
             Ap++;
         }
     }
 }
-
 
 void multiply_matrices_elementwise(Fmatrix *A, Fmatrix *B, Fmatrix *C, bool omit_last_row) {
     // omit_last_row will be true when multiplying dL/dZ * dL/dA bc dL/dA is one longer (A holds a bias factor and Z does not)
@@ -139,8 +150,8 @@ void multiply_matrices_elementwise(Fmatrix *A, Fmatrix *B, Fmatrix *C, bool omit
 }
 
 void scale_matrix(Fmatrix *matrix, float factor) {
-    float *Mp = &matrix->mat[0];
     int size = matrix->nrows * matrix->ncols;
+    float *Mp = &matrix->mat[0];
     for (int i = 0; i < size; i++) {
         *Mp++ *= factor;
     }
@@ -187,28 +198,35 @@ void copy_some_matrix_values(Fmatrix *original, Fmatrix *New, int start_idx, int
     int orig_ncols = original->ncols;
     float *New_mat = New->mat;
     float *orig_mat = original->mat;
+    float *Np, *Op;
 
     if (!execute_wrap) {
         for (int i = 0; i < new_nrows; i++) {
+            Np = &New_mat[i * new_ncols];
+            Op = &orig_mat[i * orig_ncols + start_idx];
             for (int j = start_idx; j < end_idx; j++) {
-                New_mat[i * new_ncols + j - start_idx] = orig_mat[i * orig_ncols + j];
+                *Np++ = *Op++;
             }
         }
     }
     else {
 
-        // fill out the values that we can until the end
         int values_till_end = orig_ncols - start_idx;
         for (int i = 0; i < new_nrows; i++) {
+            Np = &New_mat[i * new_ncols - start_idx];
+            Op = &orig_mat[i * orig_ncols];
             for (int j = start_idx; j < new_ncols; j++) {
-                New_mat[i * new_ncols + j - start_idx] = orig_mat[i * orig_ncols + j];
+                *Np++ = *Op++;
             }
         }
 
         // fill out the remaining values using the beginning of the original matrix
         for (int i = 0; i < new_nrows; i++) {
+            Np = &New_mat[i * new_ncols];
+            Op = &orig_mat[i * orig_ncols];
             for ( int j = 0; j < new_ncols - values_till_end; j++) {
-                New_mat[i * new_ncols + j] = orig_mat[i * orig_ncols + j];
+                //New_mat[i * new_ncols + j] = orig_mat[i * orig_ncols + j];
+                *Np++ = *Op++;
             }
         }
     }
