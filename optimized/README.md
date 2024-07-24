@@ -1,3 +1,6 @@
+Acuracy boosts:
+0: He initialization: the network learns far faster, especially in the beginning of training & achieves higher final train & test accuracy. ~96%->~98% train and ~95%->~96% test 
+
 efficiency boosts:
 0: 2d matrix program w no boosts
 1: flattened all matrices into 1d
@@ -6,6 +9,7 @@ efficiency boosts:
 3: Storing inner loop variables in registers
 4: SIMD using avx
 5: Improved pointer arithmetic and general program efficiency
+6: Multithreading
 
 With optimizations, this actually makes the program slower than the simple 2d array implementation
 
@@ -13,7 +17,8 @@ With optimizations, this actually makes the program slower than the simple 2d ar
 
 0:   -O0: 33.2 training and 4.25 full forward
      -O1: 9.2 training and 1.17 full forward
-     -O3: 5.20 training and 0.66 full forward
+     -O2: 5.20 training and 0.66 full forward
+     -O3: you don't wanna know
 
 1:   -O0: 34.8 training and 4.7 full forward
      -O1: 21.4 training and 3.0 full forward
@@ -34,4 +39,9 @@ With optimizations, this actually makes the program slower than the simple 2d ar
 
 5:   -O0: 7.92 training and 0.98 full forward
      -O1: 2.39 training and 0.32 full forward
+     -O2: 2.18 training and 0.33 full forward
+     -O3: 2.10 training and 0.33 full forward
+6: 
+
+     -O3: 0.74 training and 0.04 full forward
 

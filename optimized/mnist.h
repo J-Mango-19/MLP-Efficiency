@@ -59,6 +59,18 @@ typedef struct {
     int num_hidden_2;
 } Preferences;
 
+// holds the struct that is passed into matrix multiplication worker threads
+typedef struct {
+    float *Amat;
+    float *Bmat;
+    float *Cmat;
+    int ncolsA;
+    int ncols;
+    int nrows;
+    int start;
+    int end;
+} ThreadData;
+
 // utils.c: Nested struct dynamic memory allocation
 Nodes *init_nodes(Fmatrix *X, Weights *weights);
 void init_misc(Misc *misc, Nodes *nodes, int batch_size, Weights *weights, Fmatrix *X);
@@ -77,7 +89,7 @@ void deriv_relu(Fmatrix *Z, Fmatrix *derivative);
 void backward_pass(Fmatrix *X, Nodes *nodes, Weights *weights, Fmatrix *Y, Deltas *deltas, Misc *misc);
 void update_weights(Deltas *deltas, Weights *weights, float lr);
 
-// Fmatrix_operations.c: all functions
+// matrix_operations.c: all functions
 float *initialize_array(int nrows, int ncols);
 Fmatrix *allocate_matrix(int nrows, int ncols);
 void transpose_matrix(Fmatrix *arr, Fmatrix *transposed);
@@ -90,6 +102,9 @@ void copy_some_matrix_values(Fmatrix *original, Fmatrix *New, int start_index, i
 void one_hot(Fmatrix *Y, Fmatrix *one_hot_Y);
 void argmax_into_yhat(Fmatrix *A, Fmatrix *yhat);
 void display_matrix(Fmatrix *X);
+void *matmul_threaded_worker(void *arg);
+void multiply_matrices_threads(Fmatrix *A, Fmatrix *B, Fmatrix *C);
+void multiply_matrices_standard(Fmatrix *A, Fmatrix *B, Fmatrix *C);
 
 // utils.c: dynamic memory freeing functions 
 void free_matrix_structs(Fmatrix *test_yhat, Fmatrix *train_yhat, Fmatrix *X_batch, Fmatrix *Y_batch, Fmatrix *W1, Fmatrix *W2, Fmatrix *W3);
@@ -112,6 +127,8 @@ void display_examples(int display_start, int display_end, Fmatrix *X_test, Fmatr
 void append_bias_factor(Fmatrix *A);
 void get_next_batch(int i, int batch_size, Fmatrix *X_train, Fmatrix *Y_train, Fmatrix *X_batch, Fmatrix *Y_batch); 
 float random_float();
-void randomize_weights(Fmatrix *W);
+void randomize_weights_He(Fmatrix *W, int fan_in);
 float get_accuracy(Fmatrix *yhat, Fmatrix *Y);
+
+
 

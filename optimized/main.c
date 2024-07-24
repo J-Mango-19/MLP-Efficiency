@@ -4,12 +4,12 @@
 #include "mnist.h"
 
 int main(int argc, char *argv[]) {
-    clock_t start, end; // allocation, training, and inference will be timed in this program
-    start = clock();
+    struct timespec start, end; // allocation, training, and inference will be timed separately in this program
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
     // read in & prepare data (misc, train/test split, x/y split, normalize x values, append bias factor)
     Preferences *preferences = get_input(argc, argv);
-    Fmatrix data = read_csv("MNIST_data.csv");
+    Fmatrix data = read_csv("../MNIST_data.csv");
     Fmatrix X_train, X_test, Y_train, Y_test;
     split_data(&data, &X_train, &Y_train, &X_test, &Y_test);
     scale_matrix(&X_train, (float) 1 / 255);
@@ -39,11 +39,12 @@ int main(int argc, char *argv[]) {
     Nodes *nodes_test = init_nodes(&X_test, &weights);
     Fmatrix *train_yhat = allocate_matrix(10, Y_train.ncols);
     Fmatrix *test_yhat = allocate_matrix(10, Y_test.ncols);
-    end = clock();
-    printf("Allocation took %lf seconds to execute\n", ((double) (end - start)) / CLOCKS_PER_SEC);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    double elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+    printf("Allocation took %lf seconds to execute\n", elapsed);
 
     // main training loop
-    start = clock();
+    clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < preferences->num_iterations; i++) {
         // forward pass, backpropagation, & weight update
         forward_pass(nodes_batch, X_batch, &weights);
@@ -58,14 +59,16 @@ int main(int argc, char *argv[]) {
         get_next_batch(i, preferences->batch_size, &X_train, &Y_train, X_batch, Y_batch);
 
     }
-    end = clock();
-    printf("Training (non-allocation) operations of program took %f seconds to execute\n", ((double) (end - start)) / CLOCKS_PER_SEC);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+    printf("Training (non-allocation) operations of program took %f seconds to execute\n", elapsed);
 
     // recording forward pass time for comparison - not essential to the program
-    start = clock();
+    clock_gettime(CLOCK_MONOTONIC, &start);
     forward_pass(nodes_train, &X_train, &weights);
-    end = clock();
-    printf("Inference time for entire training set (784 pixels x 41000 examples): %lf seconds\n", ((double) (end - start)) / CLOCKS_PER_SEC);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+    printf("Inference time for entire training set (784 pixels x 41000 examples): %lf seconds\n", elapsed);
     
     // Optionally display some examples to command line
     display_examples(preferences->display_start, preferences->display_end, &X_test, &Y_test, &weights);

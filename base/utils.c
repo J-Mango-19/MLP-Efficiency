@@ -1,8 +1,10 @@
-#include "mnist.h"
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
+
+#include "mnist.h"
 
 Matrix read_csv(const char* filename) {
     Matrix data_matrix;
@@ -301,11 +303,15 @@ float random_float() {
     return ((float)rand() / (float)RAND_MAX);
 }
 
-void randomize_weights(Matrix *W) {
+void randomize_weights_He(Matrix *W, int fan_in) {
     // Initialize every value of each matrix according to a uniform distribution on (-0.5, 0.5)
+    float std_dev = sqrt(2.0 / fan_in);
     for (int i = 0; i < W->nrows; i++) {
         for (int j = 0; j < W->ncols; j++) {
-            W->mat[i][j] = random_float() - 0.5;
+            float u1 = random_float();
+            float u2 = random_float();
+            float z1 = sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
+            W->mat[i][j] = z1 * std_dev; 
         }
     }
 }
@@ -370,7 +376,7 @@ void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hid
     weights->W2 = allocate_matrix(num_hidden_2, num_hidden_1 + 1);
     weights->W3 = allocate_matrix(num_output, num_hidden_2 + 1);
 
-    randomize_weights(weights->W1);
-    randomize_weights(weights->W2);
-    randomize_weights(weights->W3);
+    randomize_weights_He(weights->W1, num_input);
+    randomize_weights_He(weights->W2, num_hidden_1);
+    randomize_weights_He(weights->W3, num_hidden_2);
 }

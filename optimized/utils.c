@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 Fmatrix read_csv(const char* filename) {
     Fmatrix data_matrix;
@@ -52,7 +53,6 @@ void usage(int code) {
     printf("Example usage: ./mnist -lr 0.05 -batch_size 20 -status_interval 200 -display 200 220\n");
     exit(code);
 }
-
 
 Preferences *get_input(int argc, char *argv[]) {
     Preferences *preferences = malloc(sizeof(Preferences)); 
@@ -274,12 +274,15 @@ inline float random_float() {
     return ((float)rand() / (float)RAND_MAX);
 }
 
-void randomize_weights(Fmatrix *W) {
-    // Initialize every value of each matrix according to a uniform distribution on (-0.5, 0.5)
-    for (int i = 0; i < W->nrows; i++) {
-        for (int j = 0; j < W->ncols; j++) {
-            W->mat[i * W->ncols + j] = random_float() - 0.5;
-        }
+void randomize_weights_He(Fmatrix *W, int fan_in) {
+    // Initialize weight values according to He initialization (normal distribution with 0 mean and small variance determined by the number of incoming weights)
+    float std_dev = sqrt(2.0 / fan_in);
+    int size = W->nrows * W->ncols;
+    for (int i = 0; i < size; i++) {
+        float u1 = random_float(); 
+        float u2 = random_float();
+        float z1 = sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
+        W->mat[i] = z1 * std_dev;
     }
 }
 
@@ -348,7 +351,7 @@ void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hid
     weights->W2 = allocate_matrix(num_hidden_2, num_hidden_1 + 1);
     weights->W3 = allocate_matrix(num_output, num_hidden_2 + 1);
 
-    randomize_weights(weights->W1);
-    randomize_weights(weights->W2);
-    randomize_weights(weights->W3);
+    randomize_weights_He(weights->W1, num_input);
+    randomize_weights_He(weights->W2, num_hidden_1);
+    randomize_weights_He(weights->W3, num_hidden_2);
 }

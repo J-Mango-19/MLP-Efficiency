@@ -112,6 +112,6 @@ void display_examples(int display_start, int display_end, Matrix *X_test, Matrix
 void append_bias_factor(Matrix *A);
 void get_next_batch(int i, int batch_size, Matrix *X_train, Matrix *Y_train, Matrix *X_batch, Matrix *Y_batch); 
 float random_float();
-void randomize_weights(Matrix *W);
+void randomize_weights_He(Matrix *W, int fan_in);
 float get_accuracy(Matrix *yhat, Matrix *Y);
 
