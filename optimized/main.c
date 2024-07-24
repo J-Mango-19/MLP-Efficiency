@@ -9,7 +9,7 @@ int main(int argc, char *argv[]) {
 
     // read in & prepare data (misc, train/test split, x/y split, normalize x values, append bias factor)
     Preferences *preferences = get_input(argc, argv);
-    Fmatrix data = read_csv("../MNIST_data.csv");
+    Fmatrix data = read_csv("../data/MNIST_data.csv");
     Fmatrix X_train, X_test, Y_train, Y_test;
     split_data(&data, &X_train, &Y_train, &X_test, &Y_test);
     scale_matrix(&X_train, (float) 1 / 255);

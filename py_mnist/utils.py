@@ -1,5 +1,4 @@
 import sys 
-from mnist_nn import forward, get_predictions
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -26,6 +25,7 @@ def get_input(arguments):
     display_end = 105
     status_interval = 100
     arguments = arguments[1:]
+    file_path = '../data/MNIST_data.csv'
     while arguments:
         arg = arguments.pop(0)
         if arg == "-h":
@@ -50,9 +50,10 @@ def get_input(arguments):
     if not (display_start <= display_end and display_start >= 0 and display_end < 1000):
         usage(1)
 
-    return lr, batch_size, steps, display_start, display_end, status_interval
+    return lr, batch_size, steps, display_start, display_end, status_interval, file_path
 
 def display_output(X_test, Y_test, start_idx, end_idx, W1, b1, W2, b2, W3, b3):
+    from neural_network import forward, get_predictions
     for i in range(start_idx, end_idx):
         image = X_test[:, i]
         label = int(Y_test[i])
@@ -83,20 +84,8 @@ def init_params(hidden_nodes_1=30, hidden_nodes_2=20):
     b3 = he_init((num_out, 1), hidden_nodes_2)
     return w1, b1, w2, b2, w3, b3
 
-def get_predictions(a3):
-    return np.argmax(a3, 0)
-
 def get_accuracy(predictions, y):
     return np.sum(predictions == y) / y.size
-
-def update_weights(W1, b1, W2, b2, W3, b3, dW1, db1, dW2, db2, dW3, db3, lr):
-    W1 = W1 - lr * dW1
-    b1 = b1 - lr * db1
-    W2 = W2 - lr * dW2
-    b2 = b2 - lr * db2
-    W3 = W3 - lr * dW3
-    b3 = b3 - lr * db3
-    return W1, b1, W2, b2, W3, b3
 
 def one_hot(y):
     one_hot_y = np.zeros((10, y.size))
