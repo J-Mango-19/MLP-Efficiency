@@ -50,6 +50,7 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
     float *Ap = &Amat[0];
     float *Bp = &Bmat[0];
     float *Cp = &Cmat[0];
+    float *end_ptr;
     int i, k;
 
     if (A->ncols != B->nrows) {
@@ -59,8 +60,7 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
     }
 
     //set the matrix to zero
-    memset(Cmat, 0, C->ncols * C->nrows * sizeof(float));
-
+    memset(Cmat, 0, ncols * nrows * sizeof(float));
 
     /*
     for (k = 0; k < ncolsA; k++) {
@@ -108,7 +108,6 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
 
     */
     // !! from chat!!
-    float *end_ptr;
     for (i = 0; i < nrows; i++) {
         Ap = &Amat[i * ncolsA];
         for (k = 0; k < ncolsA; k++) {
