@@ -4,9 +4,9 @@
 #include <string.h>
 #include <immintrin.h>
 #include <time.h>
+#include <pthread.h>
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
-
+#define NUM_THREADS 10
 
 float *initialize_array(int nrows, int ncols) {
     float *arr = malloc(nrows * ncols * sizeof(float));
@@ -39,7 +39,7 @@ void transpose_matrix(Fmatrix *original, Fmatrix *transposed) {
     }
 }
 
-void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
+void multiply_matrices_standard(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
     // reduce linked list operations by storing pointers
     int ncolsA = A->ncols;
     int nrows = C->nrows;
@@ -62,52 +62,7 @@ void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
     //set the matrix to zero
     memset(Cmat, 0, ncols * nrows * sizeof(float));
 
-    /*
-    for (k = 0; k < ncolsA; k++) {
-      ap = &Amat[k];
-      for (i = 0; i < nrows; i++) {
-        cp = &Cmat[i * ncols];
-        bp = &Bmat[k * ncols];
-        register float a_val = *ap;
-        for (j = 0; j < ncols - 4; j += 4) {
-            register float b1 = *bp++;
-            register float b2 = *bp++;
-            register float b3 = *bp++;
-            register float b4 = *bp++;
-            *cp++ += a_val * b1;
-            *cp++ += a_val * b2;
-            *cp++ += a_val * b3;
-            *cp++ += a_val * b4;
-        }
-        for (; j < ncols; j++) {
-          *cp++ += *ap * *bp++;
-        }
-        ap += ncolsA;
-      }
-      ap++;
-    }
-
-    for (k = 0; k < ncolsA; k++) {
-      ap = &Amat[k];
-      for (i = 0; i < nrows; i++) {
-        cp = &Cmat[i * ncols];
-        bp = &Bmat[k * ncols];
-        for (j = 0; j < ncols - 4; j += 4) {
-          *cp++ += *ap * *bp++;
-          *cp++ += *ap * *bp++;
-          *cp++ += *ap * *bp++;
-          *cp++ += *ap * *bp++;
-        }
-        for (; j < ncols; j++) {
-          *cp++ += *ap * *bp++;
-        }
-        ap += ncolsA;
-      }
-      ap++;
-    }
-
-    */
-    // !! from chat!!
+    // multiplication logic
     for (i = 0; i < nrows; i++) {
         Ap = &Amat[i * ncolsA];
         for (k = 0; k < ncolsA; k++) {
@@ -270,5 +225,116 @@ void display_matrix(Fmatrix *X) {
         else if (X->mat[i] * 255 > 150) printf("+");
         else if (X->mat[i] * 255 > 100) printf("-");
         else printf(" ");
+    }
+}
+
+void *matmul_threaded_worker(void *arg) {
+    ThreadData* data = (ThreadData*)arg;
+    float *Amat = data->Amat;
+    float *Bmat = data->Bmat;
+    float *Cmat = data->Cmat;
+    int ncolsA = data->ncolsA;
+    int nrows = data->nrows;
+    int ncols = data->ncols;
+    int start = data->start;
+    int end = data->end;
+    float *Cp, *Ap, *Bp;
+    int i, j, k;
+    for (k = 0; k < ncolsA; k++) {
+        Ap = Amat + k;
+        for (i = 0; i < nrows; i++) {
+            __m256 a = _mm256_set1_ps(*Ap);
+            Cp = &Cmat[i * ncols + start];
+            Bp = &Bmat[k * ncols + start];
+            for (j = start; j <= end - 8; j+= 8) {
+                __m256 b = _mm256_loadu_ps(Bp);
+                __m256 c = _mm256_loadu_ps(Cp);
+                c = _mm256_add_ps(c, _mm256_mul_ps(a, b));
+                _mm256_storeu_ps(Cp, c);
+                Cp += 8;
+                Bp += 8;
+            }
+            while (j < end) {
+                *Cp++ += *Ap * *Bp++;
+                j++;
+            }
+            Ap += ncolsA;
+        }
+    }
+    return NULL;
+}
+
+void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
+    // use multitheading for large matrices
+    if (B->ncols > 2000 && B->ncols % NUM_THREADS == 0) {
+        multiply_matrices_threads(A, B, C);
+    }
+    // use standard algorithm for small matrices
+    else {
+        multiply_matrices_standard(A, B, C);
+    }
+}
+void multiply_matrices_threads(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
+    // check size compatibililty
+    if (A->ncols != B->nrows || C->nrows != A->nrows || C->ncols != B->ncols)  {
+        printf("matmul_base: Error: incompatible matrix dimensions\n");
+        printf("%d\n", A->ncols == B->nrows);
+        printf("%d, %d\n", A->ncols, B->nrows);
+        printf("%d\n", C->nrows == A->nrows);
+        printf("%d\n", C->ncols == B->ncols);
+        exit(1);
+    }
+
+    // reduce linked list operations by storing pointers
+    int ncolsA = A->ncols;
+    int nrows = C->nrows;
+    int ncols = C->ncols;
+    float *Amat = A->mat;
+    float *Bmat = B->mat;
+    float *Cmat = C->mat;
+
+    memset(C->mat, 0, C->nrows * C->ncols * sizeof(float));
+
+    /*
+     * number of examples: 41000 or 100
+     * each thread will work on a different section of each example 
+     * so, divide the number of examples by the number of threads to get the area that each one works on
+     * 41000 / 5 = 8200
+     * so t1 : (0, 8200), t2 : (8200, 16400), t3 : (16400, 24600) etc
+     * all of the threads are synchronized after each example
+     * No need a mutex for C access bc it's incremented by j, and each thread has its own j 
+     */
+
+    // Make the threads
+    pthread_t threads[NUM_THREADS];
+    ThreadData thread_datas[NUM_THREADS]; 
+    int examples_per_thread = B->ncols / NUM_THREADS;
+    if (B->ncols % NUM_THREADS != 0) {
+        printf("Batch size not divisible by number of threads\n");
+        exit(1);
+    }
+
+    // assign the thread args based on the portion of examples they will cover
+    for (int i = 0; i < NUM_THREADS ; i++) {
+            thread_datas[i] = (ThreadData){
+            .Amat = Amat,
+            .Bmat = Bmat,
+            .Cmat = Cmat,
+            .ncolsA = ncolsA,
+            .ncols = ncols,
+            .nrows = nrows,
+            .start = i * examples_per_thread,
+            .end = (i + 1) * examples_per_thread
+            };
+    }
+
+    // launch the threads
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_create(&threads[i], NULL, matmul_threaded_worker, (void*) &thread_datas[i]);
+    }
+
+    // collect the threads
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
     }
 }

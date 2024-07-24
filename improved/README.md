@@ -9,6 +9,7 @@ efficiency boosts:
 3: Storing inner loop variables in registers
 4: SIMD using avx
 5: Improved pointer arithmetic and general program efficiency
+6: Multithreading
 
 With optimizations, this actually makes the program slower than the simple 2d array implementation
 
@@ -40,4 +41,7 @@ With optimizations, this actually makes the program slower than the simple 2d ar
      -O1: 2.39 training and 0.32 full forward
      -O2: 2.18 training and 0.33 full forward
      -O3: 2.10 training and 0.33 full forward
+6: 
+
+     -O3: 0.74 training and 0.04 full forward
 
