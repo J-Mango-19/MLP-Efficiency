@@ -63,7 +63,7 @@ def display_output(X_test, Y_test, start_idx, end_idx, W1, b1, W2, b2, W3, b3):
         image = image.reshape(28, 28) * 255 # undoing normalization
         plt.gray()
         plt.imshow(image, interpolation='nearest')
-        plt.show()
+        plt.savefig(f'example{i}.png', format='png', bbox_inches='tight', pad_inches=0)
 
 def he_init(shape, fan_in):
     n = np.prod(shape)

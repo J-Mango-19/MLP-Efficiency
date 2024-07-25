@@ -7,8 +7,10 @@ DONE 2) replace timing functions in base folder
 DONE 3) remove 'optimized' folder (probably rename 'improved' to 'optimized' after this)
 DONE 4) move python folder into project
 DONE 5) put he initialization in python folder
-5.5) put MNIST dataset in its own folder
-6) create python script to run all versions
+DONE 5.5) put MNIST dataset in its own folder
+DONE 5.51) Reorg data output of C files
+DONE 6) create python script to run all versions
+
     - collect total program time 
     - collect total train time over 10,000 steps 
     - collect full dataset forward pass time

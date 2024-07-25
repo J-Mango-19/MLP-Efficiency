@@ -298,7 +298,7 @@ void print_accuracy(int i, Nodes *nodes_train, Nodes *nodes_test, Fmatrix *X_tra
     forward_pass(nodes_test, X_test, weights);
     argmax_into_yhat(nodes_train->A3, train_yhat);
     argmax_into_yhat(nodes_test->A3, test_yhat);
-    printf("Iteration: %d | Train Accuracy: %f, Test Accuracy: %f\n", i, get_accuracy(train_yhat, Y_train), get_accuracy(test_yhat, Y_test));
+    printf("Iteration: %.4d | Train Accuracy: %.3f, Test Accuracy: %.3f\n", i, get_accuracy(train_yhat, Y_train), get_accuracy(test_yhat, Y_test));
 }
 
 float get_accuracy(Fmatrix *yhat, Fmatrix *Y) {

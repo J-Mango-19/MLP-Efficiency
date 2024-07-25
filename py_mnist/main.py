@@ -33,7 +33,7 @@ def main():
     _, _, _, _, _, A3 = forward(X_train, W1, b1, W2, b2, W3, b3)
     predictions = get_predictions(A3)
     end_forward = time.time()
-    print(f'One inference of entire training set: {end_forward - start_forward:.4f} seconds') # Inference time isolated for comparison
+    print(f'One inference of entire training set (784 pixels x 41000 examples): {end_forward - start_forward:.4f} seconds') # Inference time isolated for comparison
 
     display_output(X_test, Y_test, display_start, display_end, W1, b1, W2, b2, W3, b3)
 

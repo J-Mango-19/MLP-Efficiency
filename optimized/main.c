@@ -40,8 +40,7 @@ int main(int argc, char *argv[]) {
     Fmatrix *train_yhat = allocate_matrix(10, Y_train.ncols);
     Fmatrix *test_yhat = allocate_matrix(10, Y_test.ncols);
     clock_gettime(CLOCK_MONOTONIC, &end);
-    double elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-    printf("Allocation took %lf seconds to execute\n", elapsed);
+    double allocation_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
     // main training loop
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -60,15 +59,16 @@ int main(int argc, char *argv[]) {
 
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
-    elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-    printf("Training (non-allocation) operations of program took %f seconds to execute\n", elapsed);
+    double train_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+    printf("Allocation took %.4lf seconds to execute\n", allocation_time);
+    printf("Training (non-allocation) operations of program took %.4f seconds to execute\n", train_time);
 
     // recording forward pass time for comparison - not essential to the program
     clock_gettime(CLOCK_MONOTONIC, &start);
     forward_pass(nodes_train, &X_train, &weights);
     clock_gettime(CLOCK_MONOTONIC, &end);
-    elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-    printf("Inference time for entire training set (784 pixels x 41000 examples): %lf seconds\n", elapsed);
+    double inference_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+    printf("Inference time for entire training set (784 pixels x 41000 examples): %.4f seconds\n", inference_time);
     
     // Optionally display some examples to command line
     display_examples(preferences->display_start, preferences->display_end, &X_test, &Y_test, &weights);
@@ -80,7 +80,6 @@ int main(int argc, char *argv[]) {
     free_misc(&misc_matrices);
     free_deltas(&deltas);
     free(preferences);
-    printf("All memory frees successful\n");
     return 0;
 }
 
