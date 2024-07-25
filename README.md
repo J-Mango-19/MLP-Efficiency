@@ -11,14 +11,14 @@ DONE 5.5) put MNIST dataset in its own folder
 DONE 5.51) Reorg data output of C files
 DONE 6) create python script to run all versions
 
-    - collect total program time 
-    - collect total train time over 10,000 steps 
-    - collect full dataset forward pass time
+    DONE- collect total program time 
+    DONE- collect total train time over 10,000 steps 
+    DONE - collect full dataset forward pass time
     - collect cache misses
-    - will need to put a suppress output (--data_collection) argument into the programs so that python can parse their output
-    - graph each version's time in a bar chart
+    DONE - will need to put a suppress output (--data_collection) argument into the programs so that python can parse their output
+    DONE- graph each version's time in a bar chart
 
-6.5) create a script to download MNIST dataset
+DONE 6.5) create a script to download MNIST dataset
 
 7) create a README.md file
     - hook visualization
@@ -33,6 +33,5 @@ DONE 6) create python script to run all versions
         - Samson Zhang video
         - maybe coffee before arch videos for general knowledge
 
-8) Post quite a nice project to GitHub
 
 

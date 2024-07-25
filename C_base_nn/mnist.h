@@ -57,6 +57,7 @@ typedef struct {
     int status_interval;
     int num_hidden_1;
     int num_hidden_2;
+    int mode;
 } Preferences;
 
 // utils.c: Nested struct dynamic memory allocation
@@ -107,6 +108,7 @@ void usage(int code);
 void print_accuracy(int i, Nodes *nodes_train, Nodes *nodes_test, Matrix *X_train, Matrix *X_test, Matrix *train_yhat, Matrix *test_yhat, Matrix *Y_train, Matrix *Y_test, Weights *weights);
 void inference_one_example(Matrix *X_test, Matrix *Y_test, Weights *weights, int index);
 void display_examples(int display_start, int display_end, Matrix *X_test, Matrix *Y_test, Weights *weights);
+void display_times(float alloc_time, float train_time, float inference_time, int mode);
 
 // utils.c: unclassified 
 void append_bias_factor(Matrix *A);

@@ -9,7 +9,7 @@ int main(int argc, char *argv[]) {
 
     // read in & prepare data (misc, train/test split, x/y split, normalize x values, append bias factor)
     Preferences *preferences = get_input(argc, argv);
-    Fmatrix data = read_csv("../data/MNIST_data.csv");
+    Fmatrix data = read_csv("../data/MNIST_data2.csv");
     Fmatrix X_train, X_test, Y_train, Y_test;
     split_data(&data, &X_train, &Y_train, &X_test, &Y_test);
     scale_matrix(&X_train, (float) 1 / 255);
@@ -60,15 +60,14 @@ int main(int argc, char *argv[]) {
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     double train_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-    printf("Allocation took %.4lf seconds to execute\n", allocation_time);
-    printf("Training (non-allocation) operations of program took %.4f seconds to execute\n", train_time);
 
     // recording forward pass time for comparison - not essential to the program
     clock_gettime(CLOCK_MONOTONIC, &start);
     forward_pass(nodes_train, &X_train, &weights);
     clock_gettime(CLOCK_MONOTONIC, &end);
     double inference_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-    printf("Inference time for entire training set (784 pixels x 41000 examples): %.4f seconds\n", inference_time);
+
+    display_times(allocation_time, train_time, inference_time, preferences->mode);
     
     // Optionally display some examples to command line
     display_examples(preferences->display_start, preferences->display_end, &X_test, &Y_test, &weights);

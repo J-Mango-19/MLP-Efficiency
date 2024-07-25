@@ -57,6 +57,7 @@ typedef struct {
     int status_interval;
     int num_hidden_1;
     int num_hidden_2;
+    int mode;
 } Preferences;
 
 // holds the struct that is passed into matrix multiplication worker threads
@@ -122,6 +123,7 @@ void usage(int code);
 void print_accuracy(int i, Nodes *nodes_train, Nodes *nodes_test, Fmatrix *X_train, Fmatrix *X_test, Fmatrix *train_yhat, Fmatrix *test_yhat, Fmatrix *Y_train, Fmatrix *Y_test, Weights *weights);
 void inference_one_example(Fmatrix *X_test, Fmatrix *Y_test, Weights *weights, int index);
 void display_examples(int display_start, int display_end, Fmatrix *X_test, Fmatrix *Y_test, Weights *weights);
+void display_times(float alloc_time, float train_time, float inference_time, int mode);
 
 // utils.c: unclassified 
 void append_bias_factor(Fmatrix *A);

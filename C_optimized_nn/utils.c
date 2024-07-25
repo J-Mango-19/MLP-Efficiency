@@ -7,7 +7,8 @@
 
 Fmatrix read_csv(const char* filename) {
     Fmatrix data_matrix;
-    data_matrix.nrows = 42000;
+    //data_matrix.nrows = 42000;
+    data_matrix.nrows = 60000;
     data_matrix.ncols = 785;
     FILE *file = fopen(filename, "r");
     if (!file) {
@@ -15,7 +16,7 @@ Fmatrix read_csv(const char* filename) {
         return data_matrix;
     }
 
-    // Allocate memory for the 2D array
+    // Allocate memory for the values
     float *data = (float *)malloc(data_matrix.nrows * data_matrix.ncols * sizeof(float));
 
     char line[16000]; // Large enough buffer to hold one line of the CSV file
@@ -50,6 +51,7 @@ void usage(int code) {
     printf("    -status_interval sets the interval that training accuracy will be displayed\n");
     printf("    -num_hidden_1 sets the number of nodes in the first hidden layer (default 30)\n");
     printf("    -num_hidden_2 sets the number of nodes in the second hidden layer (default 20)\n");
+    printf("    -mode sets the type of output (labeled times or unlabeled times)\n");
     printf("Example usage: ./mnist -lr 0.05 -batch_size 20 -status_interval 200 -display 200 220\n");
     exit(code);
 }
@@ -64,6 +66,7 @@ Preferences *get_input(int argc, char *argv[]) {
     preferences->status_interval = 100;
     preferences->num_hidden_1 = 30;
     preferences->num_hidden_2 = 20;
+    preferences->mode = 0;
 
     char arg[256];
     for (int i = 1; i < argc; i++) {
@@ -104,6 +107,9 @@ Preferences *get_input(int argc, char *argv[]) {
         else if (strcmp("-num_hidden_2", arg) == 0) {
             i++;
             preferences->num_hidden_2 = atoi(argv[i]);
+        }
+         else if (strcmp("-data_collection_mode", arg) == 0) {
+            preferences->mode = 1;
         }
         else usage(1);
     }
@@ -199,11 +205,13 @@ void split_data(Fmatrix *data, Fmatrix* X_train, Fmatrix *Y_train, Fmatrix *X_te
     */
     X_test->nrows = X_train->nrows = data->ncols;
     X_test->ncols = 1000;
-    X_train->ncols = 41000;
+    //X_train->ncols = 41000;
+    X_train->ncols = 59000; 
 
     Y_train->nrows = Y_test->nrows = 1;
     Y_test->ncols = 1000;
-    Y_train->ncols = 41000;
+    //Y_train->ncols = 41000;
+    Y_train->ncols = 59000;
 
     // dynamically allocate 2d arrays for each Matrix struct
     X_test->mat = initialize_array(X_test->nrows, X_test->ncols);
@@ -354,4 +362,18 @@ void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hid
     randomize_weights_He(weights->W1, num_input);
     randomize_weights_He(weights->W2, num_hidden_1);
     randomize_weights_He(weights->W3, num_hidden_2);
+}
+
+void display_times(float alloc_time, float train_time, float inference_time, int mode) {
+    if (mode == 0) {
+        printf("Allocation took %.4f seconds to execute\n", alloc_time);
+        printf("Training took %.4f seconds to execute\n", train_time);
+        printf("Inference time for entire training set (784 pixels x 41000 examples): %.4lf seconds\n", inference_time);
+    }
+
+    else if (mode == 1) {
+        printf("%.4f\n", alloc_time);
+        printf("%.4f\n", train_time);
+        printf("%.4f\n", inference_time);
+    }
 }

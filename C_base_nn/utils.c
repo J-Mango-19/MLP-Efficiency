@@ -72,6 +72,7 @@ void usage(int code) {
     printf("    -status_interval sets the interval that training accuracy will be displayed\n");
     printf("    -num_hidden_1 sets the number of nodes in the first hidden layer (default 30)\n");
     printf("    -num_hidden_2 sets the number of nodes in the second hidden layer (default 20)\n");
+    printf("    -mode sets the type of output (labeled times or unlabeled times)\n");
     printf("Example usage: ./mnist -lr 0.05 -batch_size 20 -status_interval 200 -display 200 220\n");
     exit(code);
 }
@@ -87,6 +88,7 @@ Preferences *get_input(int argc, char *argv[]) {
     preferences->status_interval = 100;
     preferences->num_hidden_1 = 30;
     preferences->num_hidden_2 = 20;
+    preferences->mode = 0;
 
     char arg[256];
     for (int i = 1; i < argc; i++) {
@@ -127,6 +129,9 @@ Preferences *get_input(int argc, char *argv[]) {
         else if (strcmp("-num_hidden_2", arg) == 0) {
             i++;
             preferences->num_hidden_2 = atoi(argv[i]);
+        }
+        else if (strcmp("-data_collection_mode", arg) == 0) {
+            preferences->mode = 1;
         }
         else usage(1);
     }
@@ -379,4 +384,18 @@ void init_weights(Weights *weights, int num_input, int num_hidden_1, int num_hid
     randomize_weights_He(weights->W1, num_input);
     randomize_weights_He(weights->W2, num_hidden_1);
     randomize_weights_He(weights->W3, num_hidden_2);
+}
+
+void display_times(float alloc_time, float train_time, float inference_time, int mode) {
+    if (mode == 0) {
+        printf("Allocation took %.4f seconds to execute\n", alloc_time);
+        printf("Training took %.4f seconds to execute\n", train_time);
+        printf("Inference time for entire training set (784 pixels x 41000 examples): %.4lf seconds\n", inference_time);
+    }
+
+    else if (mode == 1) {
+        printf("%.4f\n", alloc_time);
+        printf("%.4f\n", train_time);
+        printf("%.4f\n", inference_time);
+    }
 }

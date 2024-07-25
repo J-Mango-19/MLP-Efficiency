@@ -1,50 +1,112 @@
 import subprocess
 import os
+import matplotlib.pyplot as plt
 
 class File():
-    def __init__(self, name, directory, file_type, arguments):
-        self.name = name
+    def __init__(self, name, directory, file_type, arguments, display_name):
+        self.file_name = name
         self.dir = directory
         self.type = file_type
         self.args = arguments
+        self.display_name = display_name
 
+def run_program(_file, start_dir):
+    file_path = os.path.join(_file.dir, _file.file_name)
+    os.chdir(os.path.dirname(os.path.abspath(file_path)))
 
-def run_program(file_name, dir_name, file_type, start_dir, args):
-    print(f"Running {dir_name}/{file_name}...")
-    executable_path = os.path.join(dir_name, file_name)
-    os.chdir(os.path.dirname(os.path.abspath(executable_path)))
+    if _file.type == 'python':
+        print(f"Running {_file.dir}/{_file.file_name}...")
+        result = subprocess.run(['python3', _file.file_name] + _file.args, capture_output=True, text=True)
+    elif _file.type == 'C':
+            print(f"Running {_file.dir}/{_file.file_name}...")
+            try:
+                result = subprocess.run([f'./{_file.file_name}'] + _file.args, capture_output=True, text=True)
+            except FileNotFoundError:
+                print(f"Executable not found: Compiling {_file.dir}/{_file.file_name}")
+                result = subprocess.run(['make'], capture_output=True, text=True)
+                print(f"Running {_file.dir}/{_file.file_name}...")
+                result = subprocess.run([f'./{_file.file_name}'] + _file.args, capture_output=True, text=True)
 
-    if file_type == 'python':
-        result = subprocess.run(['python3', file_name] + args, capture_output=True, text=True)
-    elif file_type == 'C':
-        result = subprocess.run([f'./{file_name}'] + args, capture_output=True, text=True)
-    elif file_type == 'Make':
-        pass
+    elif _file.type == 'Make':
+        result = subprocess.run(['make'], capture_output=True, text=True)
     if result.returncode != 0:
-        print(f'{script_name} encountered errors:', result.stderr)
+        print(f'{_file.file_name} encountered errors:', result.stderr)
 
     os.chdir(start_dir)
     return result.stdout.splitlines()
 
+def visualize_data(files):
+    # Prepare data
+    names = [file.display_name for file in files]
+    alloc_times = [float(file.alloc_time) for file in files]
+    train_times = [float(file.train_time) for file in files]
+    inference_times = [float(file.inference_time) for file in files]
+    x = range(len(names))
 
+    # Set up the figures
+    fig1, ax1 = plt.subplots()
+    fig2, ax2 = plt.subplots()
+
+    # plot the alloc & train times
+    ax1.bar(x, alloc_times, label='Allocation time')
+    ax1.bar(x, train_times, label='Training time', bottom=alloc_times)
+    ax1.set_title('Total time by implementation')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(names)
+    ax1.set_xlabel('Implementation')
+    ax1.set_ylabel('Time (seconds)')
+    ax1.legend()
+    plt.show()
+
+    bars = ax2.bar(x, inference_times)
+    ax2.set_title("Full batch inference time by implementation")
+    ax2.set_ylabel('Inference time')
+    ax2.set_xlabel('Implementation')
+    ax2.set_xticks(x, names)
+
+    # Annotate bars with the actual values
+    for bar in bars:
+        yval = bar.get_height()
+        ax2.text(
+            bar.get_x() + bar.get_width() / 2,
+            yval,
+            f'{yval:.3f}',  # Format the value to three decimal places
+            ha='center',
+            va='bottom'  # Align text to the bottom of the bar
+        )
+    plt.show()
+
+    # Save figures
+    fig1.savefig('total_times_plot.png', format='png')
+    fig2.savefig('inference_times_plot.png', format='png')
+
+def download_dataset():
+    # download dataset if it is not already in ./data
+    file_path = os.path.join(os.getcwd(), "data", "MNIST_data2.csv")
+    if os.path.exists(file_path):
+        print("MNIST dataset already downloaded")
+    else:
+        print("MNIST dataset not found")
+        subprocess.run(['bash', 'download.sh'])
 
 def main():
     file_path = os.path.abspath(__file__)
     start_dir = os.path.dirname(file_path)
-    main_py = File('main.py', 'py_mnist', 'python', '-nodisplay')
-    C_optimized = File('mnist_nn', 'optimized', 'C', '-nodisplay')
-    C_base = File('mnist_nn', 'base', 'C', '-nodisplay')
 
-    file_names = ['main.py', 'mnist_nn', 'mnist_nn']
-    directories = ['py_mnist', 'optimized', 'base']
-    file_types = ['python', 'C', 'C']
-    arguments = ['-nodisplay']
+    download_dataset()
 
-    for file_name, directory, file_type in zip(file_names, directories, file_types):
-        out = run_program(file_name, directory, file_type, start_dir, arguments)
-        for line in out[-3:]:
-            print(line)
-        print('\n')
+    arguments = ['-nodisplay', '-iterations', '10000', '-data_collection_mode']
+    files = [File('main.py', 'numpy_nn', 'python', arguments, 'Numpy neural net'), 
+            File('mnist_nn', 'C_base_nn', 'C', arguments, 'C base neural net'), 
+            File('mnist_nn', 'C_optimized_nn', 'C', arguments, 'C optimized neural net')]
+
+    for _file in files[1:]:
+        out = run_program(_file, start_dir)
+        _file.alloc_time = out[-3]
+        _file.train_time = out[-2]
+        _file.inference_time = out[-1]
+
+    visualize_data(files)
 
 if __name__ == '__main__':
     main()
