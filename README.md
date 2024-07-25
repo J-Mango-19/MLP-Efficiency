@@ -17,6 +17,9 @@ DONE 6) create python script to run all versions
     - collect cache misses
     - will need to put a suppress output (--data_collection) argument into the programs so that python can parse their output
     - graph each version's time in a bar chart
+
+6.5) create a script to download MNIST dataset
+
 7) create a README.md file
     - hook visualization
     - usage instructions

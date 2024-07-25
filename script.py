@@ -1,6 +1,14 @@
 import subprocess
 import os
 
+class File():
+    def __init__(self, name, directory, file_type, arguments):
+        self.name = name
+        self.dir = directory
+        self.type = file_type
+        self.args = arguments
+
+
 def run_program(file_name, dir_name, file_type, start_dir, args):
     print(f"Running {dir_name}/{file_name}...")
     executable_path = os.path.join(dir_name, file_name)
@@ -19,9 +27,13 @@ def run_program(file_name, dir_name, file_type, start_dir, args):
     return result.stdout.splitlines()
 
 
+
 def main():
     file_path = os.path.abspath(__file__)
     start_dir = os.path.dirname(file_path)
+    main_py = File('main.py', 'py_mnist', 'python', '-nodisplay')
+    C_optimized = File('mnist_nn', 'optimized', 'C', '-nodisplay')
+    C_base = File('mnist_nn', 'base', 'C', '-nodisplay')
 
     file_names = ['main.py', 'mnist_nn', 'mnist_nn']
     directories = ['py_mnist', 'optimized', 'base']
