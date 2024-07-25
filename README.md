@@ -20,6 +20,12 @@ DONE 6) create python script to run all versions
 
 DONE 6.5) create a script to download MNIST dataset
 
+6.6) connect to github so that I can download and install CBLAS and make a version with that
+6.65) make script still work even when some things aren't downloaded
+DONE 6.7) get rid of references to 41000/42000 and replace with 59000/60000
+6.8) remove downloading behavior of matplotlib files
+
+
 7) create a README.md file
     - hook visualization
     - usage instructions

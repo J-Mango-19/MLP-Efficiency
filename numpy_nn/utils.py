@@ -26,7 +26,7 @@ def get_input(arguments):
     display_end = 105
     status_interval = 100
     arguments = arguments[1:]
-    file_path = '../data/MNIST_data.csv'
+    file_path = '../data/MNIST_data2.csv'
     mode = 0
     while arguments:
         arg = arguments.pop(0)

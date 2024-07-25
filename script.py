@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 import matplotlib.pyplot as plt
 
 class File():
@@ -10,30 +11,31 @@ class File():
         self.args = arguments
         self.display_name = display_name
 
-def run_program(_file, start_dir):
+def run_program(_file, start_dir, suppress_output):
     file_path = os.path.join(_file.dir, _file.file_name)
     os.chdir(os.path.dirname(os.path.abspath(file_path)))
 
     if _file.type == 'python':
         print(f"Running {_file.dir}/{_file.file_name}...")
-        result = subprocess.run(['python3', _file.file_name] + _file.args, capture_output=True, text=True)
+        result = subprocess.run(['python3', _file.file_name] + _file.args, capture_output=suppress_output, text=True)
     elif _file.type == 'C':
             print(f"Running {_file.dir}/{_file.file_name}...")
             try:
-                result = subprocess.run([f'./{_file.file_name}'] + _file.args, capture_output=True, text=True)
+                result = subprocess.run([f'./{_file.file_name}'] + _file.args, capture_output=suppress_output, text=True)
             except FileNotFoundError:
                 print(f"Executable not found: Compiling {_file.dir}/{_file.file_name}")
                 result = subprocess.run(['make'], capture_output=True, text=True)
                 print(f"Running {_file.dir}/{_file.file_name}...")
-                result = subprocess.run([f'./{_file.file_name}'] + _file.args, capture_output=True, text=True)
+                result = subprocess.run([f'./{_file.file_name}'] + _file.args, capture_output=suppress_output, text=True)
 
-    elif _file.type == 'Make':
-        result = subprocess.run(['make'], capture_output=True, text=True)
     if result.returncode != 0:
         print(f'{_file.file_name} encountered errors:', result.stderr)
 
     os.chdir(start_dir)
-    return result.stdout.splitlines()
+    try: 
+        return result.stdout.splitlines()
+    except AttributeError:
+        pass
 
 def visualize_data(files):
     # Prepare data
@@ -92,21 +94,27 @@ def download_dataset():
 def main():
     file_path = os.path.abspath(__file__)
     start_dir = os.path.dirname(file_path)
+    suppress_output = True if '-visualize' in sys.argv else False
 
     download_dataset()
 
-    arguments = ['-nodisplay', '-iterations', '10000', '-data_collection_mode']
+    arguments = ['-nodisplay', '-iterations', '10000']
+    if suppress_output:
+        arguments.append('-data_collection_mode')
+
     files = [File('main.py', 'numpy_nn', 'python', arguments, 'Numpy neural net'), 
             File('mnist_nn', 'C_base_nn', 'C', arguments, 'C base neural net'), 
             File('mnist_nn', 'C_optimized_nn', 'C', arguments, 'C optimized neural net')]
 
-    for _file in files[1:]:
-        out = run_program(_file, start_dir)
-        _file.alloc_time = out[-3]
-        _file.train_time = out[-2]
-        _file.inference_time = out[-1]
+    for _file in files:
+        out = run_program(_file, start_dir, suppress_output)
+        if suppress_output == True:
+            _file.alloc_time = out[-3]
+            _file.train_time = out[-2]
+            _file.inference_time = out[-1]
 
-    visualize_data(files)
+    if suppress_output == True:
+        visualize_data(files)
 
 if __name__ == '__main__':
     main()

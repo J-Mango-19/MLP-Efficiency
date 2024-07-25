@@ -7,7 +7,6 @@
 
 Fmatrix read_csv(const char* filename) {
     Fmatrix data_matrix;
-    //data_matrix.nrows = 42000;
     data_matrix.nrows = 60000;
     data_matrix.ncols = 785;
     FILE *file = fopen(filename, "r");
@@ -199,18 +198,16 @@ void init_deltas(Deltas *deltas, Nodes *nodes, Weights *weights, Fmatrix* X) {
 
 void split_data(Fmatrix *data, Fmatrix* X_train, Fmatrix *Y_train, Fmatrix *X_test, Fmatrix *Y_test) {
     /*
-      Each row of data matrix (42000 x 785) is a class label concatenated with an image vector
-      Each column of the X_train (785 x 41000) and X_test (785 x 1000) matrices will be an image vector, with one extra element allocated on the end for a bias factor
-      The corresponding columns of Y_train (1 x 41000) and Y_test (1 x 1000) matrices hold the images' labels
+      Each row of data matrix (60000 x 785) is a class label concatenated with an image vector
+      Each column of the X_train (785 x 59000) and X_test (785 x 1000) matrices will be an image vector, with one extra element allocated on the end for a bias factor
+      The corresponding columns of Y_train (1 x 59000) and Y_test (1 x 1000) matrices hold the images' labels
     */
     X_test->nrows = X_train->nrows = data->ncols;
     X_test->ncols = 1000;
-    //X_train->ncols = 41000;
     X_train->ncols = 59000; 
 
     Y_train->nrows = Y_test->nrows = 1;
     Y_test->ncols = 1000;
-    //Y_train->ncols = 41000;
     Y_train->ncols = 59000;
 
     // dynamically allocate 2d arrays for each Matrix struct
@@ -368,7 +365,7 @@ void display_times(float alloc_time, float train_time, float inference_time, int
     if (mode == 0) {
         printf("Allocation took %.4f seconds to execute\n", alloc_time);
         printf("Training took %.4f seconds to execute\n", train_time);
-        printf("Inference time for entire training set (784 pixels x 41000 examples): %.4lf seconds\n", inference_time);
+        printf("Inference time for entire training set (784 pixels x 59000 examples): %.4lf seconds\n", inference_time);
     }
 
     else if (mode == 1) {
