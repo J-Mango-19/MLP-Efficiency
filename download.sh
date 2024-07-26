@@ -1,8 +1,10 @@
-# download 41000 mnist dataset images and store in csv file under data directory
+# download 60000 mnist dataset images and store in csv file under data directory
 
 URL="https://pjreddie.com/media/files/mnist_train.csv"
 DATA_DIR="./data"
-FILENAME="mnist_data2.csv"
+FILENAME="MNIST_data.csv"
+
+mkdir -p "$DATA_DIR"
 
 echo "Downloading MNIST dataset..."
 if command -v wget > /dev/null; then

@@ -1,7 +1,7 @@
 CC= gcc
-CFLAGS= -Wall -g -lm -std=gnu99 -O3 -march=native
+CFLAGS= -Wall -fopenmp -g -lm -std=gnu99 -mavx -march=native -O3 -march=native 
 LD= gcc
-LDFLAGS = -L. -lm 
+LDFLAGS = -L. -lm -lopenblas #-fopenmp
 TARGETS = mnist_nn clean_obj
 
 all: $(TARGETS)
@@ -15,11 +15,11 @@ net.o: neural_network.c mnist.h
 utils.o: utils.c mnist.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-matrix_ops.o: matrix_operations.c mnist.h
+matrix_ops.o: matrix_operations.c mnist.h 
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 mnist_nn: main.o net.o utils.o matrix_ops.o
-	$(LD) $^ $(LDFLAGS) -o $@ 
+	$(LD) $^ $(LDFLAGS) -o $@
 
 clean:
 	@rm -f *.o mnist_nn

@@ -2,6 +2,8 @@ import subprocess
 import os
 import sys
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('TkAgg')
 
 class File():
     def __init__(self, name, directory, file_type, arguments, display_name):
@@ -46,25 +48,25 @@ def visualize_data(files):
     x = range(len(names))
 
     # Set up the figures
-    fig1, ax1 = plt.subplots()
-    fig2, ax2 = plt.subplots()
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+    plt.subplots_adjust(wspace=0.25)
 
     # plot the alloc & train times
     ax1.bar(x, alloc_times, label='Allocation time')
     ax1.bar(x, train_times, label='Training time', bottom=alloc_times)
     ax1.set_title('Total time by implementation')
     ax1.set_xticks(x)
-    ax1.set_xticklabels(names)
-    ax1.set_xlabel('Implementation')
+    ax1.set_xticklabels(names, ha='right')
+    ax1.set_xlabel('Neural Net Implementation')
     ax1.set_ylabel('Time (seconds)')
     ax1.legend()
-    plt.show()
 
     bars = ax2.bar(x, inference_times)
     ax2.set_title("Full batch inference time by implementation")
-    ax2.set_ylabel('Inference time')
-    ax2.set_xlabel('Implementation')
-    ax2.set_xticks(x, names)
+    ax2.set_ylabel('Inference time (seconds)')
+    ax2.set_xlabel('Neural Net Implementation')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(names, ha='right')
 
     # Annotate bars with the actual values
     for bar in bars:
@@ -76,15 +78,16 @@ def visualize_data(files):
             ha='center',
             va='bottom'  # Align text to the bottom of the bar
         )
+
+    plt.tight_layout()
     plt.show()
 
     # Save figures
-    fig1.savefig('total_times_plot.png', format='png')
-    fig2.savefig('inference_times_plot.png', format='png')
+    fig.savefig('combined_plot.png', format='png', bbox_inches='tight')
 
 def download_dataset():
     # download dataset if it is not already in ./data
-    file_path = os.path.join(os.getcwd(), "data", "MNIST_data2.csv")
+    file_path = os.path.join(os.getcwd(), "data", "MNIST_data.csv")
     if os.path.exists(file_path):
         print("MNIST dataset already downloaded")
     else:
@@ -98,13 +101,14 @@ def main():
 
     download_dataset()
 
-    arguments = ['-nodisplay', '-iterations', '10000']
+    arguments = ['-nodisplay']
     if suppress_output:
         arguments.append('-data_collection_mode')
 
-    files = [File('main.py', 'numpy_nn', 'python', arguments, 'Numpy neural net'), 
-            File('mnist_nn', 'C_base_nn', 'C', arguments, 'C base neural net'), 
-            File('mnist_nn', 'C_optimized_nn', 'C', arguments, 'C optimized neural net')]
+    files = [File('main.py', 'numpy_nn', 'python', arguments, 'Python (Numpy)'), 
+            File('mnist_nn', 'C_base_nn', 'C', arguments, 'C (base)'), 
+            File('mnist_nn', 'C_optimized_nn', 'C', arguments, 'C (optimized)'),
+            File('mnist_nn', 'CBLAS_nn', 'C', arguments, 'C (CBLAS)')]
 
     for _file in files:
         out = run_program(_file, start_dir, suppress_output)
@@ -118,5 +122,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 

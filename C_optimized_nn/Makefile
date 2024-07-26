@@ -19,7 +19,7 @@ matrix_ops.o: matrix_operations.c mnist.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 mnist_nn: main.o net.o utils.o matrix_ops.o
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $^ $(LDFLAGS) -o $@
 
 clean:
 	@rm -f *.o mnist_nn

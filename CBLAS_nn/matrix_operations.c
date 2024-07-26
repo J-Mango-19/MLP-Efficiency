@@ -5,8 +5,9 @@
 #include <immintrin.h>
 #include <time.h>
 #include <pthread.h>
+#include <cblas.h>
 
-#define NUM_THREADS 5
+#define NUM_THREADS 10
 
 float *initialize_array(int nrows, int ncols) {
     float *arr = malloc(nrows * ncols * sizeof(float));
@@ -35,54 +36,6 @@ void transpose_matrix(Fmatrix *original, Fmatrix *transposed) {
             //Tmat[j * nrows + i] = Omat[i * ncols + j];
             *Tp++ = *Op;
             Op += ncols;
-        }
-    }
-}
-
-void multiply_matrices_standard(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
-    // reduce linked list operations by storing pointers
-    int ncolsA = A->ncols;
-    int nrows = C->nrows;
-    int ncols = C->ncols;
-    float *Amat = A->mat;
-    float *Bmat = B->mat;
-    float *Cmat = C->mat;
-    float *Ap = &Amat[0];
-    float *Bp = &Bmat[0];
-    float *Cp = &Cmat[0];
-    float *end_ptr;
-    int i, k;
-
-    if (A->ncols != B->nrows) {
-        fprintf(stderr, "Error! Factor matrix dimensions incompatible\n");
-        fprintf(stderr, "A: (%d, %d), B: (%d, %d)\n", A->nrows, A->ncols, B->nrows, B->ncols);
-        exit(1);
-    }
-
-    //set the matrix to zero
-    memset(Cmat, 0, ncols * nrows * sizeof(float));
-
-    // multiplication logic
-    for (i = 0; i < nrows; i++) {
-        Ap = &Amat[i * ncolsA];
-        for (k = 0; k < ncolsA; k++) {
-            __m256 a = _mm256_set1_ps(*Ap);
-            Bp = &Bmat[k * ncols];
-            Cp = &Cmat[i * ncols];
-            end_ptr = (Cp + ncols) - 8;
-            for(; Cp <= end_ptr; Cp += 8) {
-                __m256 b = _mm256_loadu_ps(Bp);
-                __m256 c = _mm256_loadu_ps(Cp);
-                c = _mm256_add_ps(c, _mm256_mul_ps(a, b));
-                _mm256_storeu_ps(Cp, c);
-                Bp += 8;
-            }
-            // Handle remaining elements
-            end_ptr += 8;
-            while (Cp < end_ptr) {
-                *Cp++ += *Ap * *Bp++;
-            }
-            Ap++;
         }
     }
 }
@@ -228,113 +181,12 @@ void display_matrix(Fmatrix *X) {
     }
 }
 
-void *matmul_threaded_worker(void *arg) {
-    ThreadData* data = (ThreadData*)arg;
-    float *Amat = data->Amat;
-    float *Bmat = data->Bmat;
-    float *Cmat = data->Cmat;
-    int ncolsA = data->ncolsA;
-    int nrows = data->nrows;
-    int ncols = data->ncols;
-    int start = data->start;
-    int end = data->end;
-    float *Cp, *Ap, *Bp;
-    int i, j, k;
-    for (k = 0; k < ncolsA; k++) {
-        Ap = Amat + k;
-        for (i = 0; i < nrows; i++) {
-            __m256 a = _mm256_set1_ps(*Ap);
-            Cp = &Cmat[i * ncols + start];
-            Bp = &Bmat[k * ncols + start];
-            for (j = start; j <= end - 8; j+= 8) {
-                __m256 b = _mm256_loadu_ps(Bp);
-                __m256 c = _mm256_loadu_ps(Cp);
-                c = _mm256_add_ps(c, _mm256_mul_ps(a, b));
-                _mm256_storeu_ps(Cp, c);
-                Cp += 8;
-                Bp += 8;
-            }
-            while (j < end) {
-                *Cp++ += *Ap * *Bp++;
-                j++;
-            }
-            Ap += ncolsA;
-        }
-    }
-    return NULL;
-}
-
 void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
-    // use multitheading for large matrices
-    if (B->ncols > 2000 && B->ncols % NUM_THREADS == 0) {
-        multiply_matrices_threads(A, B, C);
-    }
-    // use standard algorithm for small matrices
-    else {
-        multiply_matrices_standard(A, B, C);
-    }
-}
-void multiply_matrices_threads(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
-    // check size compatibililty
-    if (A->ncols != B->nrows || C->nrows != A->nrows || C->ncols != B->ncols)  {
-        printf("matmul_base: Error: incompatible matrix dimensions\n");
-        printf("%d\n", A->ncols == B->nrows);
-        printf("%d, %d\n", A->ncols, B->nrows);
-        printf("%d\n", C->nrows == A->nrows);
-        printf("%d\n", C->ncols == B->ncols);
-        exit(1);
-    }
 
-    // reduce linked list operations by storing pointers
-    int ncolsA = A->ncols;
-    int nrows = C->nrows;
-    int ncols = C->ncols;
-    float *Amat = A->mat;
-    float *Bmat = B->mat;
-    float *Cmat = C->mat;
-
+    setenv("OPENBLAS_NUM_THREADS", "4", 1);
     memset(C->mat, 0, C->nrows * C->ncols * sizeof(float));
+    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, C->nrows, C->ncols, A->ncols,
+    1.0, (const float *)A->mat, A->ncols, (const float *)B->mat, B->ncols, 
+    1.0, C->mat, C->ncols);
 
-    /*
-     * number of examples: 41000 or 100
-     * each thread will work on a different section of each example 
-     * so, divide the number of examples by the number of threads to get the area that each one works on
-     * 41000 / 5 = 8200
-     * so t1 : (0, 8200), t2 : (8200, 16400), t3 : (16400, 24600) etc
-     * all of the threads are synchronized after each example
-     * No need a mutex for C access bc it's incremented by j, and each thread has its own j 
-     */
-
-    // Make the threads
-    pthread_t threads[NUM_THREADS];
-    ThreadData thread_datas[NUM_THREADS]; 
-    int examples_per_thread = B->ncols / NUM_THREADS;
-    if (B->ncols % NUM_THREADS != 0) {
-        printf("Batch size not divisible by number of threads\n");
-        exit(1);
-    }
-
-    // assign the thread args based on the portion of examples they will cover
-    for (int i = 0; i < NUM_THREADS ; i++) {
-            thread_datas[i] = (ThreadData){
-            .Amat = Amat,
-            .Bmat = Bmat,
-            .Cmat = Cmat,
-            .ncolsA = ncolsA,
-            .ncols = ncols,
-            .nrows = nrows,
-            .start = i * examples_per_thread,
-            .end = (i + 1) * examples_per_thread
-            };
-    }
-
-    // launch the threads
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pthread_create(&threads[i], NULL, matmul_threaded_worker, (void*) &thread_datas[i]);
-    }
-
-    // collect the threads
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pthread_join(threads[i], NULL);
-    }
 }

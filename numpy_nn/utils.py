@@ -1,6 +1,5 @@
 import sys 
 import numpy as np
-import matplotlib.pyplot as plt
 
 def usage(code):
     print("Usage:")
@@ -26,7 +25,7 @@ def get_input(arguments):
     display_end = 105
     status_interval = 100
     arguments = arguments[1:]
-    file_path = '../data/MNIST_data2.csv'
+    file_path = '../data/MNIST_data.csv'
     mode = 0
     while arguments:
         arg = arguments.pop(0)

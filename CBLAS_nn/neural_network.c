@@ -37,14 +37,13 @@ void softmax(Fmatrix *Z) {
            Zp += ncols;
         }
     }
-    // Z is 10 x 60k ie very long so the best way to access is along the rows 
-    // e is 60k x 10 ie very tall so the best way to access is along the columns
+    // Z is 10 x 42k ie very long so the best way to access is along the rows 
+    // e is 42k x 10 ie very tall so the best way to access is along the columns
     // task is to look at a chunk of 10 at a time, then move onto the next chunk of 10
     // this would mean e is very efficient to access
     // ill start by accessing e better using the transposed values then check training then try out transposing z for better writing acess
 
 }
-
 inline void relu(Fmatrix *Z) {
     float *Zp = &Z->mat[0];
     float *end = Zp + Z->nrows * Z->ncols;
