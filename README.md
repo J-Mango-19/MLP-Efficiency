@@ -1,4 +1,3 @@
-"Optimizing a Neural Network for Efficiency"
 
 Next steps:
 DONE 0) look into replacing small matrix multiplication function with the one in matmul/clean folder. Test both of them there first
@@ -25,6 +24,9 @@ DONE 6.65) make script still work even when some things aren't downloaded
 DONE 6.7) get rid of references to 41000/42000 and replace with 59000/60000
 6.8) remove downloading behavior of matplotlib files
 
+
+- put threads back to 10 to compare the full batch inference time
+- work on readme
 
 7) create a README.md file
     - hook visualization

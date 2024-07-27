@@ -6,7 +6,7 @@
 #include <time.h>
 #include <pthread.h>
 
-#define NUM_THREADS 5
+#define NUM_THREADS 10
 
 float *initialize_array(int nrows, int ncols) {
     float *arr = malloc(nrows * ncols * sizeof(float));
