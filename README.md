@@ -90,11 +90,4 @@ on/) This lecture and pieces of other lectures from the same course established 
 
 
 
-7) create a README.md file
-    - discuss completely unoptimized C time
-    - discuss methods used (compiler flags, flattening matrices, SIMD, threads, loop ordering, pointer arithmetic, etc)
-    - show rest of graphics
-
-
-
 
