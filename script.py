@@ -95,7 +95,7 @@ def visualize_data(files):
         )
 
     plt.tight_layout()
-    plt.show()
+    #plt.show()
 
     # Save figures
     fig.savefig('combined_plot.png', format='png', bbox_inches='tight')
