@@ -80,7 +80,7 @@ making the program competitive with NumPy, which also utilizes multithreading.
 Because NumPy calls a lower-level linear algebra package, its matrix multiplication speed still beats my optimized C program, as shown below. The NumPy program is slower 
 overall most likely because of other Python operations.
 
-![VM_10_forward.png](assets/total_vm.png)
+![forward_pass_times](VM_10_forward.png)
 
 ## Analysis
 
@@ -108,7 +108,7 @@ optimal performance.
 On that note, efficiently training deep learning models is dependent on more than just hardware oriented optimizations. A basic example of this is the usage of He weight
 initialization rather than sampling from a uniform distribution. The neural networks in this project trained to 90% accuracy with He initialization in just 100-200 
 training steps, far more efficient than the 500-1000 steps needed to reach 90% accuracy with weights sampled from a uniform distribution on the interval [-0.5, 0.5].
-Similarly, minibatch gradient descent is an logical choice to replace the slow, expensive process of full-batch gradient descent on a sizeable dataset.
+Similarly, minibatch gradient descent is a logical choice to replace the slow, expensive process of full-batch gradient descent on a sizeable dataset.
 
 ## Acknowledgements
 
