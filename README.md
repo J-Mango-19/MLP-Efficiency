@@ -80,7 +80,7 @@ making the program competitive with NumPy, which also utilizes multithreading.
 Because NumPy calls a lower-level linear algebra package, its matrix multiplication speed still beats my optimized C program, as shown below. The NumPy program is slower 
 overall most likely because of other Python operations.
 
-![forward_pass_times](VM_10_forward.png)
+![forward_pass_times](assets/VM_10_forward.png)
 
 ## Analysis
 
