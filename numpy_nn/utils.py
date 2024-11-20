@@ -1,5 +1,6 @@
 import sys 
 import numpy as np
+import matplotlib.pyplot as plt
 
 def usage(code):
     print("Usage:")
@@ -65,6 +66,7 @@ def display_output(X_test, Y_test, start_idx, end_idx, W1, b1, W2, b2, W3, b3):
         plt.title(f"Prediction: {prediction} Label: {label}")
         image = image.reshape(28, 28) * 255 # undoing normalization
         plt.gray()
+        plt.axis("off")
         plt.imshow(image, interpolation='nearest')
         plt.savefig(f'example{i}.png', format='png', bbox_inches='tight', pad_inches=0)
 
