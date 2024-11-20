@@ -1,8 +1,12 @@
+import os
+os.environ["OMP_NUM_THREADS"] = "4"
+os.environ["OPENBLAS_NUM_THREADS"] = "4"
 import numpy as np
 import time
 import sys
 from neural_network import train, forward, get_predictions
 from utils import get_input, display_output, display_times
+import matplotlib.pyplot as plt
 
 def main():
     # load data, hyperparameters, and other preferences

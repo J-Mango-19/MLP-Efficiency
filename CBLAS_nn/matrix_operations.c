@@ -182,8 +182,6 @@ void display_matrix(Fmatrix *X) {
 }
 
 void multiply_matrices(Fmatrix *A, Fmatrix *B, Fmatrix *C) {
-
-    setenv("OPENBLAS_NUM_THREADS", "4", 1);
     memset(C->mat, 0, C->nrows * C->ncols * sizeof(float));
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, C->nrows, C->ncols, A->ncols,
     1.0, (const float *)A->mat, A->ncols, (const float *)B->mat, B->ncols, 

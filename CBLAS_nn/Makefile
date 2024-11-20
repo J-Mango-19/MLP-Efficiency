@@ -1,7 +1,12 @@
 CC= gcc
-CFLAGS= -Wall -fopenmp -g -lm -std=gnu99 -mavx -march=native -O3 -march=native 
+CFLAGS= -Wall -lm -mavx -march=native -Ofast
 LD= gcc
-LDFLAGS = -L. -lm -lopenblas #-fopenmp
+# Add the directory where OpenBLAS is installed (assuming ~/local/openblas)
+OPENBLAS_PATH=$(HOME)/local/openblas
+LDFLAGS=-L$(OPENBLAS_PATH)/lib -lopenblas -lm -lpthread
+# Also add the include path for OpenBLAS headers, if needed
+CFLAGS += -I$(OPENBLAS_PATH)/include
+
 TARGETS = mnist_nn clean_obj
 
 all: $(TARGETS)

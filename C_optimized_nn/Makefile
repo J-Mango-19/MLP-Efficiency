@@ -1,5 +1,5 @@
 CC= gcc
-CFLAGS= -Wall -g -lm -std=gnu99 -mavx -march=native -O3 -pthread -march=native
+CFLAGS= -Wall -g -lm -std=gnu99 -mavx -march=native -Ofast
 LD= gcc
 LDFLAGS = -L. -lm -pthread
 TARGETS = mnist_nn clean_obj

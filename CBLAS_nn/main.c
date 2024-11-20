@@ -2,8 +2,11 @@
 #include <stdio.h>
 #include <time.h>
 #include "mnist.h"
+#include <cblas.h>
+
 
 int main(int argc, char *argv[]) {
+    setenv("openblas_num_threads", "4", 1);
     struct timespec start, end; // allocation, training, and inference will be timed separately in this program
     clock_gettime(CLOCK_MONOTONIC, &start);
 
