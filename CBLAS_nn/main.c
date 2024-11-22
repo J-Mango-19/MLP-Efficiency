@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     clock_gettime(CLOCK_MONOTONIC, &end);
     double inference_time = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
-    display_times(allocation_time, train_time, inference_time, preferences->mode);
+    display_times(allocation_time, train_time, inference_time);
     
     // Optionally display some examples to command line
     display_examples(preferences->display_start, preferences->display_end, &X_test, &Y_test, &weights);

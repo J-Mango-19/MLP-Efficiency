@@ -14,4 +14,4 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
-LD_PRELOAD=~/local/openblas/lib/libopenblas.so ./mnist_nn
+LD_PRELOAD=~/local/openblas/lib/libopenblas.so ./mnist_nn $@

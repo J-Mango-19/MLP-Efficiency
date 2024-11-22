@@ -10,10 +10,9 @@ import matplotlib.pyplot as plt
 
 def main():
     # load data, hyperparameters, and other preferences
-    lr, batch_size, steps, display_start, display_end, status_interval, file_path, mode = get_input(sys.argv)
+    lr, batch_size, steps, display_start, display_end, status_interval, file_path = get_input(sys.argv)
     start_alloc = time.time() # allocation and training time are separated to isolate training performance for comparison 
-    print("Reading MNIST data...")
-    data = np.genfromtxt(file_path, delimiter=',', skip_header=1).T 
+    data = np.loadtxt(file_path, delimiter=',').T
 
     test_data = data[:, :1000]
     train_data = data[:, 1000:]
@@ -39,7 +38,7 @@ def main():
     end_forward = time.time()
     inference_time = end_forward - start_forward
 
-    display_times(allocation_time, train_time, inference_time, mode)
+    display_times(allocation_time, train_time, inference_time)
 
     display_output(X_test, Y_test, display_start, display_end, W1, b1, W2, b2, W3, b3)
 
