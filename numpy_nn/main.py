@@ -1,6 +1,6 @@
 import os
-os.environ["OMP_NUM_THREADS"] = "4"
-os.environ["OPENBLAS_NUM_THREADS"] = "4"
+os.environ["OMP_NUM_THREADS"] = "5"
+os.environ["OPENBLAS_NUM_THREADS"] = "5"
 import numpy as np
 import time
 import sys
