@@ -1,50 +1,43 @@
 # MLP-Efficiency
-Evaluates the impact of various methods for improving the speed (memory access, training, inference) of neural nets using implementations in Numpy, OpenBLAS, and two of 
-my own C programs, all benchmarked on the MNIST dataset. 
+Evaluates the impact of various methods for improving the speed (memory access, training, inference) of neural nets using implementations in Numpy, C with OpenBLAS, a baseline C program, 
+and a C program I optimized myself, all benchmarked on the Fashion MNIST dataset.
 
-![train_time.png](assets/total_vm.png)
+![train_time.png](assets/training_time_chart.png)
 
-Modern deep learning models frequently exceed 100 billion parameters, consuming substantial time and resources during training, making efficient implementations vital.
-CPU-based MLP implementations trained for classification on the MNIST dataset offer a small scale version of this problem from which to evaluate the effectiveness of 
-several methods to accelerate deep learning tasks. 
-
-All references to training time or efficiency between NumPy and C implementations will be made with respect to training and accuracy calculation time, disregarding 
-the initial time each program needs to load the dataset into memory. It's apparent in the above bar graph that the direct memory access of C makes this segment not worth 
-comparing.
+Modern deep learning models consume substantial time and compute resources during training to such a degree that compute resources are often the limiting factor in performance.
+MLPs trained for classification on the CPU offer a scaled-down version of this problem that can still provide insight into which deep learning acceleration methods are effective, and why.
 
 ## Usage
 
-Quick start: run `python3 script.py` to watch all the models train in real time. Add the `-visualize` flag to recreate the charts seen in this file. Note that `script.py` calls
-`download.sh` which will download the MNIST dataset if it's not already downloaded.
+Quick start: run `python3 run.py` to watch all the models train in real time. Note that `run.py` calls`FMNIST_download.sh` which will download the Fashion MNIST dataset if it's not already downloaded.
 
-Run `python3 main.py` or `make` then `./mnist_nn` after changing to a program's directory to experiment with individual implementations.
-Several flags controlling batch size, additional visualizations, training iterations and more are already included, and are viewable by running the program with `-h` after it.
+Add a `-h` flag to view more available flags.
 
-Note: The programs in this repository utilize instructions unique to Intel machines and will not run on other hardware. If a required library (NumPy or OpenBLAS), is not 
-installed, the Python script will skip the implementation that requires it and proceed with the others.
+To run each MLP implementation individually, switch to its directory and run `./run_<implementation_name>.sh -<optional_flag_1> -<optional_flag_2>`. As before, use `-h` to view available flags.
+
+Note: Some programs in this repository utilize instructions unique to Intel machines and will not run on other hardware. 
 
 ## Overview & Process 
 
-I began this project by aiming to improve the training speed of the NumPy implementation, assuming that the extra effort of rewriting the program in C would reward me with a 
-faster program since it bypasses the Python interpreter with a directly compiled C executable. 
+I began this project by aiming to improve the training speed of the Python/NumPy implementation, hoping that bypassing the Python interpreter with a directly compiled C executable would 
+reward me with a faster program. Of course, the Python program spent most of its time doing computations inside highly optimized NumPy calls; consequently, my baseline C program took
+far longer to train than the original Python/NumPy implementation.
 
-NumPy is a highly optimized library and so the first C program I wrote took far longer to train than the original NumPy implementation. 
-It's well known that deep learning is very matrix multiplication intensive, and the base C implementation confirms this anecdotally: its matrix multiplication
-function accounted for 93% of its runtime. Consequently, the focus of the optimizations is centered on matrix multiplication.
+Follow-up implementations `C_optimized_nn` and `CBLAS_nn` reduce training time below NumPy's.
 
-After researching and tinkering with a number of optimization techniques for matrix multiplication, I wrote an optimized variant of the C program, which outperforms the 
-NumPy implementation by a narrow margin.
-Finally, I called OpenBLAS's single-precision general matrix multiplication API in a third C implementation to contextualize the programs with the true best performance 
-on this task.
+Since deep learning is matrix multiplication intensive, (the baseline program's matrix multiplication function accounted for 93% of its runtime) most optimizations in `C_optimized_nn`
+are directed at matrix multiplication. For context against the optimal matrix multiplication performance, I called OpenBLAS's single-precision general matrix multiplication API in `CBLAS_nn`. 
 
-Training on MNIST with minibatch (default size 100) stochastic gradient descent is too small of a problem to properly demonstrate optimizations, so
-the programs' default settings require a forward pass on all 60,000 patterns every 100 training steps to calculate train and test accuracy. These input matrices, being 6,000 
-times larger than training batches, account for the bulk of computation time and optimizations are therefore directed at them.
+The MLPs are trained with minibatch (default batch size 100) stochastic gradient descent. Each implementation performs a forward pass on all 60,000 images at a default interval of every 100 training
+steps to calculate and display train and test accuracy. Since full-dataset forward passes are 6,000x larger than training forward passes, adjusting their frequency can simulate training on a 
+larger model/dataset. 
 
 Unsurprisingly, existing methods (NumPy, OpenBLAS) are easily the best options for manually constructing deep learning models. Still, experimenting with custom 
 implementations offers otherwise inaccessible insight into how and why efficient implementations are effective.  
 
 ## Optimization methods
+
+Experimentation with several techniques in `C_optimized_nn` yielded a matrix multiplication function that outperforms Python/NumPy in training time.
 
 ### Base implementation
 The base C implementation holds data in 2d arrays and performs matrix multiplication using using the triple for loop method. The innermost loop iterates over the longest
@@ -58,12 +51,12 @@ from the beginning of the next.
 
 ### Matrix Multiplication Algorithm
 Further improvements proved challenging, since conventional efficient matrix multiplication techniques (Strassen's algorithm, matrix blocking, matrix transposition) 
-failed to outperform the original `for` loops on the unevenly shaped input matrix. 
+failed to outperform the original `for` loops. This is likely because the largest matrix multiplications are oddly shaped: (eg, (30, 785)x(785, 42000)).
 
 ### Reduction & Parallelization of Instructions 
 Implementing SIMD instructions and efficient pointer arithmetic dramatically improved performance, but only when compiled without optimization flags. 
-Inspection of the base and optimized matrix multiplication function machine code confirmed that these optimizations are automatically enabled when compiling with the 
--O3 flag. The following observations are based on programs compiled without an optimization flag. 
+Inspection of the base and optimized matrix multiplication function assembly code confirmed that these optimizations are automatically enabled when compiling with the 
+-Ofast flag. The following observations are based on programs compiled without an optimization flag. 
 
 Utilizing pointer arithmetic and loop hoisting in place of the standard array indexing used in the base implementation dramatically reduces the number of operations 
 necessary to access matrix elements. Array indexing operations are small, but streamlining them is still valuable because the instructions in the innermost `for` loop 
@@ -73,12 +66,9 @@ SIMD instructions enable the program to multiply and add eight floats in paralle
 multiplication. 
 
 ### Multithreading
-What did significantly improve performance, regardless of compilation flags, was introducing a multithreading option for large input matrices into the matrix 
-multiplication function. Splitting the batch dimension calculations across 10 threads barely affected cache misses and parallelized the function, 
+Introducing multithreading to the matrix multiplication function significantly improved performance regardless of optimization flags. 
+For large matrices, splitting the batch dimension calculations across 10 threads barely affected cache misses and parallelized the function, 
 making the program competitive with NumPy, which also utilizes multithreading.
-
-Because NumPy calls a lower-level linear algebra package, its matrix multiplication speed still beats my optimized C program, as shown below. The NumPy program is slower 
-overall most likely because of other Python operations.
 
 ![forward_pass_times](assets/VM_10_forward.png)
 
@@ -120,5 +110,8 @@ The following resources were vital to this project:
 
 [BLISlab: A Sandbox for Optimizing GEMM](https://github.com/flame/blislab) Helped me learn through experimentation what works and what doesn't in optimizing matrix multiplication.
 
+[Fashion MNIST dataset](https://github.com/zalandoresearch/fashion-mnist)
+
 [MNIST dataset](https://pjreddie.com/projects/mnist-in-csv/)
+
 
