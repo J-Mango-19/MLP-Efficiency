@@ -1,4 +1,6 @@
-# download 60000 mnist dataset images and store in csv file under data directory
+#!/bin/bash
+
+# downloads 60000 mnist images and stores them in data/MNIST_data.csv
 
 URL="https://pjreddie.com/media/files/mnist_train.csv"
 DATA_DIR="./data"

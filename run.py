@@ -5,12 +5,11 @@ import glob
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-
-
 def main():
     visualize = True # create bar plots visualizing training times
+    dataset = "FMNIST" # can be substituted with MNIST
 
-    if subprocess.run(['bash', 'download.sh']).returncode != 0:
+    if subprocess.run(['bash', f'./bin/{dataset}_download.sh']).returncode != 0:
         sys.exit(1)
 
     if len(sys.argv) == 1:
@@ -24,6 +23,7 @@ def main():
     times_dict = {}
     for sub_dir in sub_dirs:
         os.chdir(sub_dir)
+        # skip directories with nothing to run
         if not (run_file := glob.glob("run_*.sh")):
             os.chdir("..")
             continue
@@ -31,13 +31,18 @@ def main():
         command = ['bash', run_file[0]]
         command += arguments
         print(f"Running {command} in directory: {sub_dir}")
-        subprocess.run(command)
+        output = subprocess.run(command)
+
+        if output.returncode != 0:
+            print(f"Failed to run {command} in directory: {sub_dir}")
+            sys.exit(1)
 
         with open("stats.txt", "r") as file:
             times_dict[run_file[0]] = file.read().splitlines()
 
-        if Path("stats.txt").exists:
+        if Path("stats.txt").exists():
             os.remove("stats.txt")
+
         os.chdir("..")
 
     # Everything after this is plotting times. If not plotting, then done.
@@ -96,20 +101,8 @@ def main():
 
     plt.tight_layout()
 
-
+    print("Saving results in 'training_time_chart.png'")
     figure.savefig("training_time_chart.png", format='png', bbox_inches='tight')
 
 if __name__ == "__main__":
     main()
-
-    
-
-
-
-
-
-
-
-
-
-

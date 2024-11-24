@@ -23,7 +23,8 @@ fi
 python3.12 main.py $@ 2>/dev/null
 
 if [ "$?" -ne "0" ]; then
-    echo "Could not find python, python3, python3.11, or python3.12 to run numpy_nn"
+    echo "Failed to run numpy_nn."
+    echo "Possible cause is that run_numpy.sh couldn't find a python version. Tried python, python3, python3.11, python3.12."
     exit 1
 fi
 
