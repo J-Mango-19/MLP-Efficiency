@@ -47,8 +47,8 @@ def update_weights(W1, b1, W2, b2, W3, b3, dW1, db1, dW2, db2, dW3, db3, lr):
     b3 = b3 - lr * db3
     return W1, b1, W2, b2, W3, b3
 
-def train(X_train, Y_train, X_test, Y_test, lr, steps, batch_size, status_interval):
-  W1, b1, W2, b2, W3, b3 = init_params()
+def train(X_train, Y_train, X_test, Y_test, lr, steps, batch_size, status_interval, num_hidden_1, num_hidden_2):
+  W1, b1, W2, b2, W3, b3 = init_params(num_hidden_1, num_hidden_2)
   pos_1 = -1 * batch_size
 
   for step in range(steps):

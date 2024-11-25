@@ -11,9 +11,11 @@ def usage(code):
     print("     -batch_size sets batch size")
     print("     -iterations sets number of training iterations")
     print("     -display <num1> <num2> displays digits and their predictions from the test dataset")
-    print("ensure 0 < num1 < num2 < 1000 as there are 1000 test dataset digits")
+    print("      (ensure 0 < num1 < num2 < 1000 as there are 1000 test dataset digits)")
     print("     -nodisplay turns the automatic display examples off")
     print("     -status_interval sets the interval at which the test and training accuracy will be displayed")
+    print("     -num_hidden_1 sets the number of nodes in the first hidden layer (default 30)")
+    print("     -num_hidden_2 sets the number of nodes in the second hidden layer (default 20)")
     print("example usage: python3 mnist_nn -lr 0.05 -status_interval 200 -display 110 120")
     sys.exit(code)
 
@@ -26,6 +28,8 @@ def get_input(arguments):
     status_interval = 100
     arguments = arguments[1:]
     file_path = '../data/MNIST_data.csv'
+    num_hidden_1 = 30
+    num_hidden_2 = 20
     while arguments:
         arg = arguments.pop(0)
         if arg == "-h":
@@ -44,13 +48,17 @@ def get_input(arguments):
         elif arg == "-nodisplay":
             display_start = 0
             display_end = 0
+        elif arg == "-num_hidden_1":
+            num_hidden_1 = int(arguments.pop(0))
+        elif arg == "-num_hidden_2":
+            num_hidden_2 = int(arguments.pop(0))
         else:
             usage(1)
 
     if not (display_start <= display_end and display_start >= 0 and display_end < 1000):
         usage(1)
 
-    return lr, batch_size, steps, display_start, display_end, status_interval, file_path
+    return lr, batch_size, steps, display_start, display_end, status_interval, file_path, num_hidden_1, num_hidden_2
 
 def display_output(X_test, Y_test, start_idx, end_idx, W1, b1, W2, b2, W3, b3):
     from neural_network import forward, get_predictions

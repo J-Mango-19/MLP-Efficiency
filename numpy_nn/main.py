@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 def main():
     # load data, hyperparameters, and other preferences
-    lr, batch_size, steps, display_start, display_end, status_interval, file_path = get_input(sys.argv)
+    lr, batch_size, steps, display_start, display_end, status_interval, file_path, num_hidden_1, num_hidden_2 = get_input(sys.argv)
     start_alloc = time.time() # allocation and training time are separated to isolate training performance for comparison 
     data = np.loadtxt(file_path, delimiter=',').T
 
@@ -26,7 +26,7 @@ def main():
     
     # training
     train_start = time.time()
-    W1, b1, W2, b2, W3, b3 = train(X_train, Y_train, X_test, Y_test, lr, steps, batch_size, status_interval)
+    W1, b1, W2, b2, W3, b3 = train(X_train, Y_train, X_test, Y_test, lr, steps, batch_size, status_interval, num_hidden_1, num_hidden_2)
     train_end = time.time()
     allocation_time = end_alloc - start_alloc
     train_time = train_end - train_start
